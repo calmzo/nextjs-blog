@@ -1,0 +1,403 @@
+---
+title: ''
+date: '2022-01-01'
+tags: ['技术']
+draft: false
+summary: '技术相关文章，包含详细的技术实现和最佳实践。'
+---
+
+title: 【Hyperf初探2》】
+author: Calm
+top: true
+cover: true
+toc: true
+mathjax: false
+summary: Hyperf初探2 数据库、路由
+categories:
+  - PHP
+  - Hyperf
+tags:
+  - PHP
+  - Hyperf
+abbrlink: 2502701b
+date: 2022-07-14 15:02:00
+
+## 数据库配置
+
+- Coroutine\MySQL
+协程MySQL客户端，不推荐使用，推荐使用Swoole\Runtime::enableCoroutine+PDO或Mysqli方式，即一键协程化原生PHP的MySQL客户端
+
+- hyperf/db-connection组件
+基于hyperf/pool实现数据库连接池并对模型进行了新的抽象，以它作为桥梁，hyperf才能把数据库组件及事件组件接进来
+
+### 读写分离
+
+普通配置
+```php
+return [
+    'default' => [
+        'driver' => env('DB_DRIVER', 'mysql'),
+        'host' => env('DB_HOST', 'localhost'),
+        'database' => env('DB_DATABASE', 'hyperf'),
+        'port' => env('DB_PORT', 3306),
+        'username' => env('DB_USERNAME', 'root'),
+        'password' => env('DB_PASSWORD', ''),
+        ...
+        ]
+]   
+```
+
+读写分离配置
+```php
+return [
+	'dafault'=>[
+		'driver'=>env('DB_DRIVER','mysql'),
+		'read'=>[
+			'host'=>['192.168.1.1'],
+		],
+		'write'=>[
+			'host'=>['192.168.1.2'],
+		],
+		'sticky'=>true,
+		'database'=>env("DB_DATABASE",'hyperf'),
+		'port'=>env("DB_PORT",'3306'),
+		....
+		]
+]
+```
+env文件配置
+```env
+DB_DRIVER=mysql
+DB_HOST=nj-cdb-4sabbghb.sql.xxx.com
+DB_PORT=6xxx6
+DB_DATABASE=xxx-dev
+DB_USERNAME=xxx
+DB_PASSWORD=xxx@2022
+DB_CHARSET=utf8mb4
+DB_COLLATION=utf8mb4_unicode_ci
+DB_PREFIX=
+```
+
+### 创建表
+```shell
+php bin/hyperf.php gen:model 表名
+```
+
+### 查询
+Query查询类 
+方式同laravel
+
+## 路由
+
+### 配置文件路由
+1. 通过闭包定义路由
+```php
+<?php
+use Hyperf\HttpServer\Router\Router;
+
+Router::get('/hello-hyperf', function () {
+    return 'Hello Hyperf.';
+});
+```
+2. 定义标准路由
+标准路由: 控制器(Controller) 和 操作(Action) 来处理的路由
+```php
+<?php
+use Hyperf\HttpServer\Router\Router;
+
+// 下面三种方式的任意一种都可以达到同样的效果
+Router::get('/hello-hyperf', 'App\Controller\IndexController::hello');
+Router::get('/hello-hyperf', 'App\Controller\IndexController@hello');
+Router::get('/hello-hyperf', [App\Controller\IndexController::class, 'hello']);
+```
+3. 路由组
+```php
+Router::addGroup('/user/',function (){
+    Router::get('index','App\Controller\UserController@index');
+    Router::post('store','App\Controller\UserController@store');
+    Router::get('update','App\Controller\UserController@update');
+    Router::post('delete','App\Controller\UserController@delete');
+});
+
+```
+
+### 注解路由
+[注解](https://hyperf.wiki/2.2/#/zh-cn/annotation) 路由
+在任意类上通过定义 @Controller 或 @AutoController 注解来完成一个路由的定义
+#### @AutoController 注解
+>使用 @AutoController 注解时需 use Hyperf\HttpServer\Annotation\AutoController; 命名空间；
+
+|  控制器   | 注解  | 访问路由 |
+|  ----  | ----  | ---- |
+| MyDataController  | @AutoController() | /my_data/index |
+| MydataController  | @AutoController() | /mydata/index |
+| MyDataController  | @AutoController(prefix="/data")  | /data/index |
+
+#### @Controller 注解
+@Controller 为满足更细致的路由定义需求而存在，使用 @Controller 注解用于表明当前类为一个 Controller 类，同时需配合 @RequestMapping 注解来对请求方法和请求路径进行更详细的定义。
+我们也提供了多种快速便捷的 Mapping 注解，如 @GetMapping、@PostMapping、@PutMapping、@PatchMapping、@DeleteMapping 5 种便捷的注解用于表明允许不同的请求方法。
+
+>使用 @Controller 注解时需 use Hyperf\HttpServer\Annotation\Controller; 命名空间；
+使用 @RequestMapping 注解时需 use Hyperf\HttpServer\Annotation\RequestMapping; 命名空间；
+使用 @GetMapping 注解时需 use Hyperf\HttpServer\Annotation\GetMapping; 命名空间；
+使用 @PostMapping 注解时需 use Hyperf\HttpServer\Annotation\PostMapping; 命名空间；
+使用 @PutMapping 注解时需 use Hyperf\HttpServer\Annotation\PutMapping; 命名空间；
+使用 @PatchMapping 注解时需 use Hyperf\HttpServer\Annotation\PatchMapping; 命名空间；
+使用 @DeleteMapping 注解时需 use Hyperf\HttpServer\Annotation\DeleteMapping; 命名空间；
+
+注解参数
+**@Controller** 和 **@AutoController** 都提供了 **prefix** 和 **server** 两个参数。
+**prefix** 表示该 Controller 下的所有方法路由的前缀，默认为类名的小写，如 **UserController** 则 **prefix** 默认为 **user**，如类内某一方法的 **path** 为 **index**，则最终路由为 **/user/index**。
+需要注意的是 **prefix** 并非一直有效，当类内的方法的 **path** 以 / 开头时，则表明路径从 URI 头部开始定义，也就意味着会忽略 **prefix** 的值。
+**server** 表示该路由是定义在哪个 **Server** 之上的，由于 Hyperf 支持同时启动多个 **Server**，也就意味着有可能会同时存在多个 **HTTP Server**，则在定义路由是可以通过 **server** 参数来进行区分这个路由是为了哪个 **Server** 定义的，默认为 **http**。
+
+```php
+<?php
+declare(strict_types=1);
+
+namespace App\Controller;
+
+use App\Service\UserService;
+use Hyperf\HttpServer\Contract\RequestInterface;
+
+/**
+ * @Controller()
+ */
+class UserController extends AbstractController
+{
+
+    private $userService;
+
+    public function __construct(UserService $userService)
+    {
+        $this->userService = $userService;
+    }
+
+    /**
+     * @RequestMapping(path="detail", methods="get")
+     * @param RequestInterface $request
+     */
+    public function findOne(RequestInterface $request)
+    {
+        $name = $request->input('name', '');
+        return $this->userService->findUser($name);
+    }
+}
+
+```
+
+### 路由参数
+```php
+Router::get('/user/{id}', 'App\Controller\UserController::info');
+
+```
+```php
+public function info(int $id)
+{
+    $user = User::find($id);
+    return $user->toArray();
+}
+```
+#### 必填参数
+我们可以对 $uri 进行一些参数定义，通过 {} 来声明参数，如 /user/{id} 则声明了 id 值为一个必填参数。
+
+#### 可选参数
+有时候您可能会希望这个参数是可选的，您可以通过 [] 来声明中括号内的参数为一个可选参数，如 /user/[{id}]。
+
+#### 获取路由信息
+如果安装了 devtool 组件，可使用 php bin/hyperf.php describe:routes 命令获取路由列表信息， 并且提供 path 可选项，方便获取单个路由信息，对应的命令 php bin/hyperf.php describe:routes --path=/foo/bar。
+
+## 中间件
+洋葱模型
+中间件主要用于编织从 **请求(Request)** 到 **响应(Response)** 的整个流程
+### 生成中间件
+```shell
+php ./bin/hyperf.php gen:middleware Auth/FooMiddleware
+```
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Middleware\Auth;
+
+use Hyperf\HttpServer\Contract\RequestInterface;
+use Hyperf\HttpServer\Contract\ResponseInterface as HttpResponse;
+use Psr\Container\ContainerInterface;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Server\MiddlewareInterface;
+use Psr\Http\Server\RequestHandlerInterface;
+
+class FooMiddleware implements MiddlewareInterface
+{
+    /**
+     * @var ContainerInterface
+     */
+    protected $container;
+
+    /**
+     * @var RequestInterface
+     */
+    protected $request;
+
+    /**
+     * @var HttpResponse
+     */
+    protected $response;
+
+    public function __construct(ContainerInterface $container, HttpResponse $response, RequestInterface $request)
+    {
+        $this->container = $container;
+        $this->response = $response;
+        $this->request = $request;
+    }
+
+    public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
+    {
+        // 根据具体业务判断逻辑走向，这里假设用户携带的token有效
+        $isValidToken = true;
+        if ($isValidToken) {
+            return $handler->handle($request);
+        }
+
+        return $this->response->json(
+            [
+                'code' => -1,
+                'data' => [
+                    'error' => '中间件验证token无效，阻止继续向下执行',
+                ],
+            ]
+        );
+    }
+}
+```
+
+### 全局中间件
+全局中间件只可通过配置文件的方式来配置，配置文件位于 **config/autoload/middlewares.php** ，配置如下：
+```php
+<?php
+return [
+    // http 对应 config/autoload/server.php 内每个 server 的 name 属性对应的值，该配置仅应用在该 Server 中
+    'http' => [
+        // 数组内配置您的全局中间件，顺序根据该数组的顺序
+        YourMiddleware::class
+    ],
+];
+```
+### 局部中间件
+#### 配置文件
+
+#### 注解
+>使用 @Middleware 注解时需 use Hyperf\HttpServer\Annotation\Middleware; 命名空间；
+使用 @Middlewares 注解时需 use Hyperf\HttpServer\Annotation\Middlewares; 命名空间；
+
+定义单个中间件
+```php
+<?php
+namespace App\Controller;
+
+use App\Middleware\FooMiddleware;
+use Hyperf\HttpServer\Annotation\AutoController;
+use Hyperf\HttpServer\Annotation\Middleware;
+
+/**
+ * @AutoController()
+ * @Middleware(FooMiddleware::class)
+ */
+class IndexController
+{
+    public function index()
+    {
+        return 'Hello Hyperf.';
+    }
+}
+```
+
+定义多个中间件
+```php
+<?php
+namespace App\Controller;
+
+use App\Middleware\BarMiddleware;
+use App\Middleware\FooMiddleware;
+use Hyperf\HttpServer\Annotation\AutoController;
+use Hyperf\HttpServer\Annotation\Middleware;
+use Hyperf\HttpServer\Annotation\Middlewares;
+
+/**
+ * @AutoController()
+ * @Middlewares({
+ *     @Middleware(FooMiddleware::class),
+ *     @Middleware(BarMiddleware::class)
+ * })
+ */
+class IndexController
+{
+    public function index()
+    {
+        return 'Hello Hyperf.';
+    }
+}
+```
+
+### 常用中间件
+- 跨域中间件
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Middleware;
+
+use Hyperf\Utils\Context;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Server\MiddlewareInterface;
+use Psr\Http\Server\RequestHandlerInterface;
+
+class CorsMiddleware implements MiddlewareInterface
+{
+    public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
+    {
+        $response = Context::get(ResponseInterface::class);
+        $response = $response->withHeader('Access-Control-Allow-Origin', '*')
+            ->withHeader('Access-Control-Allow-Credentials', 'true')
+            // Headers 可以根据实际情况进行改写。
+            ->withHeader('Access-Control-Allow-Headers', 'DNT,Keep-Alive,User-Agent,Cache-Control,Content-Type,Authorization');
+
+        Context::set(ResponseInterface::class, $response);
+
+        if ($request->getMethod() == 'OPTIONS') {
+            return $response;
+        }
+
+        return $handler->handle($request);
+    }
+}
+```
+
+## 依赖注入
+### IOC控制翻转  DI依赖注入
+#### 注入方式
+1. 构造方法注入
+2. 通过Inject注解注入
+#### 注入类型
+简单对象注入
+抽象对象注入
+工厂对象注入
+
+## AOP
+**面向切面编程**
+通过 **切面(Aspect)** 介入到任意类的任意方法的执行流程中去，从而改变或加强原方法的功能
+
+基于DI实现 使用hfperf/di
+通过DI创建的对象才能使AOP生效
+
+### 使用场景
+参数校验、日志、无侵入埋点、安全统计、性能统计、事务处理、异常处理、缓存、无侵入监控、资源池、连接池管理
+
+### 流程
+1、app下新建文件夹Aspect
+2、新建indexAspect.php
+定义要切入的类

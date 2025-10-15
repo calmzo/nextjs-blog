@@ -1,0 +1,271 @@
+---
+title: 'pipeline设计模式'
+date: '2022-08-16'
+tags: ['design-pattern']
+draft: false
+summary: '关于pipeline设计模式的技术文章，包含详细的技术实现和最佳实践。'
+---
+
+# pipeline设计模式
+
+## 背景
+产品经理提了一个需求，完成任务赠送积分，如果遇到退款需要回收积分，任务是大概是这样的：
+
+> 1. 每天首次加入购物车赠送 10 积分
+> 2. 每天首单可以赠送 100 积分
+> 3. 购物累积金额达到 99 元赠送 100 积分
+> 4. 购物次数满 10 次赠送 100 积分
+> 5. 每日签到送 10 积分
+> 6. 还有很多奇奇怪怪的任务…
+
+## 实现过程
+
+### `if else` 实现
+简单， 二期可维护性降低
+```php
+// 支付成功触发赠送积分
+if ("当天首单") { // Reward shopping points }
+if ("累积99元") { // Reward shopping points }
+if ("买满10次") { // Reward shopping points }
+
+```
+###「简单工厂」+ 「策略模式」
+#### 管道模式
+> 管道模式也称为流水线模式，英文：Pipeline。
+
+Laravel 通过 Pipeline 实现 Middleware
+```php
+use Illuminate\Routing\Pipeline;
+
+protected function sendRequestThroughRouter($request)
+{
+    $this->app->instance('request', $request);
+
+    Facade::clearResolvedInstance('request');
+
+    $this->bootstrap();
+
+    return (new Pipeline($this->app))
+                ->send($request)
+                ->through($this->app->shouldSkipMiddleware() ? [] : $this->middleware)
+                ->then($this->dispatchToRouter());
+}
+```
+ `Pipeline` 的实现，发现 Laravel 是实现了一个 `Pipleline` 契约接口，实现了两个管道分别是公用的 `Pipleline` 和一个 Routing 相关的 `Pipleline`，其中 `Routing Pipleline` 是继承了公用的 `Pipleline` 重写了部分方法。
+
+- send() 需要传递的数据。
+- through() 需要处理的任务
+- via() 调用的方法名，默认为 handel()
+- then() 对于返回数据的处理
+
+### 编码
+整体构建目录
+
+```
+├── PointTask
+│   ├── OverRmb.php          // 满 N 元任务
+│   ├── SignIn.php           // 签到任务
+│   ├── TodayFirst.php       // 每日首单任务
+│   ├──
+│   ├── PointTask.php        // abstract 约束
+│   └── PointTaskService.php // 对外调用方法
+```
+抽象公用方法，统一继承实现 发放积分 回收积分
+```php
+<?php
+
+namespace App\Lib\PointTask;
+
+use Closure;
+
+abstract class PointTask
+{
+
+    //发送积分
+    abstract function send($orderInfo, Closure $next);
+
+    //回收积分
+    public function recycle($orderInfo, Closure $next)
+    {
+        return $next($orderInfo);
+    }
+}
+
+```
+
+因为有些任务是只有赠送，没有回收的情况，所以定义了 `abstract` 抽象方法，而不是 `interface` ，这样在具体任务的实现时可以不去实现 `recycle` 方法。
+
+#### 每日首单任务
+```php
+<?php
+
+namespace App\Lib\PointTask;
+
+use App\Services\Order\OrderServices;
+use App\Services\Users\UserServices;
+use Illuminate\Support\Facades\Log;
+
+class TodayFirst extends PointTask
+{
+
+    function send($orderInfo, $next)
+    {
+        // 有订单直接执行下一个任务
+        if (!app(OrderServices::class)->isTodayFirst($orderInfo['id'])) {
+            return $next($orderInfo);
+        }
+        //赠送积分
+        app(UserServices::class)->sendPoint(100);
+        Log::info("首日第一次下单送积分++");
+
+        return $next($orderInfo);
+    }
+
+    function recycle($orderInfo, $next)
+    {
+        // 回收积分, code...
+        $next($orderInfo);
+    }
+}
+
+```
+
+#### 买满多少钱赠送积分
+
+```php
+<?php
+
+namespace App\Lib\PointTask;
+
+use Illuminate\Support\Facades\Log;
+
+class OverRmb extends PointTask
+{
+
+    function send($orderInfo, $next)
+    {
+        //小于100 执行下一个任务
+        if ($orderInfo['price'] < 100) {
+            return $next($orderInfo);
+        }
+
+        //赠送积分code...  todo
+        Log::info("满送积分++");
+
+        return $next($orderInfo);
+
+    }
+
+    function recycle($orderInfo, $next)
+    {
+        //回收积分code
+        $next($orderInfo);
+    }
+}
+
+```
+
+#### 每日签到
+```php
+<?php
+
+namespace App\Lib\PointTask;
+
+use App\Services\Users\UserServices;
+use Illuminate\Support\Facades\Log;
+
+class SingIn extends PointTask
+{
+
+    function send($orderInfo, $next)
+    {
+        // 已签到直接执行下一个任务
+        if (app(UserServices::class)->todayIsSinIn()) {
+            $next($orderInfo);
+        }
+        // 赠送积分code
+        app(UserServices::class)->sendPoint(10);
+        Log::info("签到送积分++");
+
+        $next($orderInfo);
+    }
+
+    function recycle($orderInfo, $next)
+    {
+        $next($orderInfo);
+    }
+}
+
+```
+案例已经完成了方法的抽象，实现了 3 个具体积分任务，接下来编写 `PointTaskService` 实现 `Pipeline` 的组织
+
+#### PointTaskService
+```php
+<?php
+
+namespace App\Lib\PointTask;
+
+use Illuminate\Routing\Pipeline;
+use App\Services\Order\OrderServices;
+
+class PointTaskService
+{
+    // 定义了可能同时触发的任务
+    public $shopping = [OverRmb::class, TodayFirst::class];
+
+    //购物赠送积分
+    public function shoppingSend($orderId)
+    {
+        $orderInfo = app(OrderServices::class)->getOrderInfoByOrderId($orderId);
+        return (new Pipeline(app()))
+            ->send($orderInfo)
+            ->via('send')
+            ->through($this->shopping)
+            ->thenReturn();
+    }
+
+    //购物退款返还积分
+    public function shoppingRecycle($orderId)
+    {
+
+        $orderInfo = app(OrderServices::class)->getOrderInfoByOrderId($orderId);
+        return (new Pipeline(app()))
+            ->send($orderInfo)
+            ->via('recycle')
+            ->through($this->shopping)
+            ->thenReturn();
+    }
+
+    //每日签到
+    public function signIn()
+    {
+        return (new Pipeline(app()))
+            ->via('send')
+            ->through(SingIn::class)
+            ->thenReturn();
+    }
+
+}
+
+```
+
+`thenReturn ()` 方法
+`thenReturn()` 方法是对 `Pipleline` 契约接口的 `then()` 方法的包装，默认的返回值是调用 `send() `时传入的参数，如果对返回值需要再进行处理，则可调用 `then()`， 传入一个匿名函数进行处理。
+
+#### 测试调用
+```php
+    //退款成功后调用：
+    app(PointTaskService::class)->shoppingSend(12);
+    //每日签到调用
+    app(PointTaskService::class)->signIn();
+
+```
+
+如有新任务，则新建一个任务类继承 `PointTask` 实现 `send` 方法，如有可能收回积分则再实现 `recycle` 方法。
+再在 `PointTaskService` 对外开放的 `Service` 中加入到指定位置，即可完成，不会影响到其他的业务逻辑。
+已有的调用处也不用变动代码。
+
+## 参考
+- [Laravel 中的 Pipeline — 管道设计范式](https://learnku.com/laravel/t/7543/pipeline-pipeline-design-paradigm-in-laravel)
+- [Laravel之道 - Pipeline 管道操作实现请求中间件过滤（最详细讲解）](https://learnku.com/docs/the-laravel-way/5.6/Tao-5-1/2942)
+- [Laravel Pipeline 组件的实现原理](https://learnku.com/articles/2769/laravel-pipeline-realization-of-the-principle-of-single-component)

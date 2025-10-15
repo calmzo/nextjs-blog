@@ -1,0 +1,93 @@
+---
+title: 'Hexo添加百度收录'
+date: '2022-08-29'
+tags: ['hexo', 'seo']
+draft: false
+summary: '关于Hexo添加百度收录的技术文章，包含详细的技术实现和最佳实践。'
+---
+
+# Hexo添加百度收录
+
+## 1、查看网站是否收录
+百度输入`site:域名`查看我们的网站是否收录
+
+## 2、安装 sitemap
+为我们的hexo博客安装相关支持的包。这两个包分别为：
+
+- `hexo-generator-baidu-sitemap` 【该包用于支持百度搜索引擎】
+- `hexo-generator-sitemap` 【该包用于支持Google搜索引擎】
+
+```bash
+npm install hexo-generator-sitemap --save
+npm install hexo-generator-baidu-sitemap --save
+```
+
+## 3、hexo 配置文件
+根目录_config.yaml添加如下的配置（注意每行的空格）生成对应xml文件
+```yaml
+# sitemap
+sitemap:
+ path: sitemap.xml
+baidusitemap:
+ path: baidusitemap.xml
+
+url: https://calmchen.com
+#permalink: :year/:month/:day/:title/
+permalink: posts/:abbrlink.html
+permalink_defaults:
+```
+## 4、添加蜘蛛协议 `robots.txt` 的文件
+博客根目录中的 `source` 文件夹下，添加蜘蛛协议 `robots.txt` 的文件
+```text
+User-agent: *
+Allow: /
+Allow: /categories/
+Allow: /tags/
+Allow: /archives/
+Allow: /about/
+
+Disallow: /vendors/
+Disallow: /js/
+Disallow: /css/
+Disallow: /fonts/
+Disallow: /vendors/
+Disallow: /fancybox/
+
+# 记得替换成你的域名
+Sitemap: http://yoursite.com/sitemap.xml
+Sitemap: http://yoursite.com/baidusitemap.xml主动推送
+```
+
+## 5、主动推送
+
+**1、安装插件**
+
+```bash
+# 会生成baidu_urls.txt目录
+npm install hexo-baidu-url-submit --save
+```
+
+**2、配置文件**
+根目录站点配置文件`_config.yaml`中新增如下字段
+域名和秘钥可以在[站长工具平台](https://ziyuan.baidu.com/linksubmit/index) 的连接提交中的接口调用地址中找到，即对应`host`与`token`后面的字段
+
+```yaml
+baidu_url_submit:
+  count: 100 # 提交最新的一个链接
+  host: www.bkduck.cn # 在百度站长平台中注册的域名
+  token: lY..........Fk # 请注意这是您的秘钥，所以请不要把博客源代码发布在公众仓库里!
+  path: baidu_urls.txt # 文本文档的地址，新链接会保存在此文本文档里
+```
+
+**3、修改deploy配置
+根目录`_config.yaml`, 修改`deploy`配置
+```yaml
+# Deployment
+# 使用hexo deploy指令后，自动推送给百度
+## Docs: https://hexo.io/docs/deployment.html
+deploy:
+  - type: 'baidu_url_submitter'
+```
+
+## 6、百度收录新建站点
+输入站点 -> 站点属性（选择信息技术即可）-> 验证网站（按提示选择CNAM验证即可）

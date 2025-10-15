@@ -1,0 +1,49 @@
+---
+title: 'mac安装maven'
+date: '2022-05-13'
+tags: ['技术']
+draft: false
+summary: '关于mac安装maven的技术文章，包含详细的技术实现和最佳实践。'
+---
+
+## 1.[官网下载](https://maven.apache.org/download.cgi),然后解压
+推荐[maven3.6.3](https://archive.apache.org/dist/maven/maven-3/3.6.3/binaries/) 版本 maven的版本太高了 idea会报错
+```text
+java.lang.RuntimeException: org.codehaus.plexus.component.repository.exception.ComponentLookupExcept
+```
+
+## 2.解压后的路径
+比如我的是 **/usr/local/maven/apache-maven-3.6.3**
+## 3.打开终端
+
+```shell
+vi ~/.bash_profile
+```
+## 4.添加这两行，并保存
+
+```
+export M2_HOME=/usr/local/maven/apache-maven-3.6.3
+export PATH=$PATH:$M2_HOME/bin
+```
+## 5.终端输入，使配置文件生效
+
+```shell
+source ~/.bash_profile
+```
+## 6.终端输入mvn -v 查看是否安装成功
+
+```shell
+mvn -v
+```
+
+# 补充：
+> 1、source ~/.bash_profile 只能解决一次问题，因为重新打开终端，执行mvn相关命令，依然报错“zsh: command not found: mvn”，需要再执行source ~/.bash_profile才可以
+原因：zsh的配置文件没有加载~/.bash_profile的配置项。
+解决方法：在zsh的配置文件中添加source ~/.bash_profile配置项的内容
+> ```shell
+> vim ~/.zshrc
+> ```
+> 添加
+> ```shell
+> source ~/.bash_profile
+> ```

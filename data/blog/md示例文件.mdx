@@ -1,0 +1,38 @@
+---
+title: '示例 .md 文件'
+date: '2022-08-30'
+tags: ['技术']
+draft: false
+summary: '关于示例 .md 文件的技术文章，包含详细的技术实现和最佳实践。'
+---
+
+一篇包含 Markdown 的示例文章。
+
+## 行内高亮
+
+行内高亮示例 `sum = parseInt(num1) + parseInt(num2)`
+
+## 代码块
+
+一些 JavaScript 代码
+
+```javascript
+var num1, num2, sum
+num1 = prompt('Enter first number')
+num2 = prompt('Enter second number')
+sum = parseInt(num1) + parseInt(num2) // “+” 表示“加法”
+alert('Sum = ' + sum) // “+” 表示与字符串拼接
+```
+
+一些 Python 代码 🐍
+
+```python
+def fib():
+    a, b = 0, 1
+    while True:            # 第一次迭代：
+        yield a            # 先产出 0，然后
+        a, b = b, a + b    # 此时 a 为 1，b 也为 1（0 + 1）
+
+for index, fibonacci_number in zip(range(10), fib()):
+     print('{i:3}: {f:3}'.format(i=index, f=fibonacci_number))
+```

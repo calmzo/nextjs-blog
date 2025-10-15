@@ -1,0 +1,371 @@
+---
+title: '12个MySQL慢查询原因整理'
+date: '2022-08-30'
+tags: ['mysql']
+draft: false
+summary: '关于12个MySQL慢查询原因整理的技术文章，包含详细的技术实现和最佳实践。'
+---
+
+# 12个MySQL慢查询原因整理
+
+MySQL慢查询是数据库性能优化中的常见问题。本文整理了12个导致MySQL慢查询的主要原因，并提供相应的优化方案和最佳实践。
+
+## 目录
+
+- [1. SQL没加索引](#1-sql没加索引)
+- [2. SQL索引不生效](#2-sql索引不生效)
+- [3. limit 深分页问题](#3-limit-深分页问题)
+- [4. 单表数据量太大](#4-单表数据量太大)
+- [5. join 或者子查询过多](#5-join-或者子查询过多)
+- [6. in 元素过多](#6-in-元素过多)
+- [7. 数据库在刷脏页](#7-数据库在刷脏页)
+- [8. order by 文件排序](#8-order-by-文件排序)
+- [9. 拿不到锁](#9-拿不到锁)
+- [10. delete + in 子查询不走索引](#10-delete--in-子查询不走索引)
+- [11. group by 使用临时表](#11-group-by-使用临时表)
+- [12. 系统硬件或网络资源](#12-系统硬件或网络资源)
+
+## 分析工具
+
+> **重要提示**：学会用 `EXPLAIN` 分析SQL执行计划
+> 
+> ```sql
+> EXPLAIN SELECT * FROM user_info WHERE name = 'xxx';
+> ```
+> 
+> 平时我们用 `EXPLAIN` 分析 SQL 的时候，如果 `type=range`，要注意一下，可能因为数据量问题，导致索引无效。
+
+
+
+## 1. SQL没加索引
+
+在 `WHERE` 的条件列，**建立索引**，尽量避免全表扫描。
+
+```sql
+-- 错误示例：没有索引
+SELECT * FROM user_info WHERE name = 'xxx';
+
+-- 正确做法：添加索引
+CREATE INDEX idx_name ON user_info(name);
+```
+
+## 2. SQL索引不生效
+
+### 2.1 隐式的类型转换，索引失效
+
+查询语句不加单引号时，是**字符串**跟**数字**的比较，它们类型不匹配，MySQL 会做**隐式的类型转换**，把它们转换为浮点数再做比较。
+
+```sql
+-- 错误示例：隐式类型转换
+SELECT * FROM user_info WHERE phone = 12345678901;
+
+-- 正确做法：显式类型转换
+SELECT * FROM user_info WHERE phone = '12345678901';
+```
+
+### 2.2 查询条件包含 OR，可能导致索引失效
+
+遇到不走索引的时候，考虑拆开两条 SQL。
+
+```sql
+-- 可能不走索引
+SELECT * FROM user_info WHERE name = 'xxx' OR phone = '12345678901';
+
+-- 优化方案：拆分为两条SQL
+SELECT * FROM user_info WHERE name = 'xxx'
+UNION
+SELECT * FROM user_info WHERE phone = '12345678901';
+```
+
+### 2.3 LIKE 通配符可能导致索引失效
+
+并不是用了 `LIKE` 通配符，索引一定会失效，而是 `LIKE` 查询是以 `%` 开头，才会导致索引失效。
+
+**优化方案：**
+- 使用覆盖索引
+- 把 `%` 放后面
+
+```sql
+-- 不走索引
+SELECT * FROM user_info WHERE name LIKE '%xxx%';
+
+-- 可以走索引
+SELECT * FROM user_info WHERE name LIKE 'xxx%';
+```
+
+### 2.4 查询条件不满足联合索引的最左匹配原则
+
+查询条件列 `name` 不是联合索引 `idx_userid_name` 中的第一个列，索引不生效。在联合索引中，查询条件满足**最左匹配原则**时，索引才正常生效。
+
+```sql
+-- 联合索引：idx_userid_name (user_id, name)
+
+-- 可以走索引
+SELECT * FROM user_info WHERE user_id = 1;
+SELECT * FROM user_info WHERE user_id = 1 AND name = 'xxx';
+
+-- 不走索引
+SELECT * FROM user_info WHERE name = 'xxx';
+```
+
+### 2.5 在索引列上使用 MySQL 的内置函数
+
+**优化方案：** 可以把**内置函数的逻辑转移到右边**
+
+```sql
+-- 错误示例：在索引列上使用函数
+SELECT * FROM user_info WHERE YEAR(create_time) = 2023;
+
+-- 正确做法：函数逻辑转移到右边
+SELECT * FROM user_info WHERE create_time ≥ '2023-01-01' AND create_time < '2024-01-01';
+```
+
+### 2.6 对索引进行列运算，索引不生效
+
+不可以对索引列进行运算，可以在代码处理好，再传参进去。
+
+```sql
+-- 错误示例：对索引列进行运算
+SELECT * FROM user_info WHERE user_id + 1 = 100;
+
+-- 正确做法：在代码中处理
+SELECT * FROM user_info WHERE user_id = 99;
+```
+
+### 2.7 索引字段上使用（!= 或者 &lt;&gt;），索引可能失效
+
+```sql
+-- 可能不走索引
+SELECT * FROM user_info WHERE status != 1;
+
+-- 优化方案：使用范围查询
+SELECT * FROM user_info WHERE status < 1 OR status > 1;
+```
+
+### 2.8 索引字段上使用 IS NULL，IS NOT NULL，索引可能失效
+
+单个 `NOT NULL` 生效，多个 `NOT NULL` 用 `OR` 连接会失效。
+
+```sql
+-- 单个条件可能走索引
+SELECT * FROM user_info WHERE name IS NOT NULL;
+
+-- 多个OR条件可能不走索引
+SELECT * FROM user_info WHERE name IS NOT NULL OR phone IS NOT NULL;
+```
+
+### 2.9 左右连接，关联的字段编码格式不一样
+
+做表关联时，注意一下**关联字段的编码问题**。
+
+### 2.10 优化器选错了索引
+
+MySQL 优化器可能选择错误的索引，可以通过 `FORCE INDEX` 强制使用指定索引。
+
+## 3. limit 深分页问题
+
+### 原因
+
+- `LIMIT` 语句会先扫描 `offset+n` 行，然后再丢弃掉前 `offset` 行，返回后 `n` 行数据。也就是说 `LIMIT 100000,10`，就会扫描 `100010` 行，而 `LIMIT 0,10`，只扫描 `10` 行。
+- `LIMIT 100000,10` 扫描更多的行数，也意味着回表更多的次数。
+
+### 优化方案
+
+可以通过减少回表次数来优化。一般有**标签记录法**和**延迟关联法**。
+
+```sql
+-- 问题SQL：深分页
+SELECT * FROM user_info ORDER BY id LIMIT 100000, 10;
+
+-- 优化方案1：标签记录法
+SELECT * FROM user_info WHERE id > 100000 ORDER BY id LIMIT 10;
+
+-- 优化方案2：延迟关联法
+SELECT * FROM user_info u1 
+INNER JOIN (
+    SELECT id FROM user_info ORDER BY id LIMIT 100000, 10
+) u2 ON u1.id = u2.id;
+```
+
+## 4. 单表数据量太大
+
+### 原因
+
+因为维护索引的 `B+` 树结构层级变得更高了，查询一条数据时，需要经历的磁盘 **IO** 变多，因此查询性能变慢。
+
+### 分析
+
+InnoDB 存储引擎最小储存单元是页，一页大小就是 `16k`：
+
+- 如果一行记录的数据大小为 1k，那么单个叶子节点可以存的记录数 = 16k/1k = 16
+- 非叶子节点内存放多少指针呢？我们假设主键 ID 为 bigint 类型，长度为 8 字节（一个 int 就是 32 位，4 字节），而指针大小在 InnoDB 源码中设置为 6 字节，所以就是 8+6=14 字节，16k/14B = 16*1024B/14B = 1170
+
+**B+ 树容量计算：**
+- 一棵高度为 2 的 B+ 树，能存放 `1170 * 16 = 18,720` 条这样的数据记录
+- 一棵高度为 3 的 B+ 树，能存放 `1170 * 1170 * 16 = 21,902,400` 可以存放两千万左右的记录
+- B+ 树高度一般为 1-3 层，已经满足千万级别的数据存储
+
+### 优化方案
+
+一般超过千万级别，我们可以考虑**分库分表**了。
+
+**分库分表可能导致的问题：**
+- 事务问题
+- 跨库问题  
+- 排序问题
+- 分页问题
+- 分布式 ID
+
+**解决方案：**
+1. **历史数据归档**
+2. **分库分表策略**：
+   - **垂直分库分表**：按业务模块拆分
+   - **水平分库分表**：
+     - Range 范围分片
+     - Hash 取模分片
+     - Range + Hash 混合分片
+
+## 5. JOIN 或者子查询过多
+
+业务需要的话，关联 2~3 个表是可以接受的，但是**关联的字段**需要加索引。如果需要关联更多的表，建议从代码层面进行拆分，在业务层先查询一张表的数据，然后以关联字段作为条件查询关联表形成 `map`，然后在业务层进行数据的拼装。
+
+```sql
+-- 问题：多表关联
+SELECT u.*, p.*, o.* 
+FROM user u 
+JOIN profile p ON u.id = p.user_id 
+JOIN orders o ON u.id = o.user_id;
+
+-- 优化：业务层拆分
+-- 1. 先查询用户信息
+SELECT * FROM user WHERE id IN (1,2,3);
+-- 2. 再查询关联信息
+SELECT * FROM profile WHERE user_id IN (1,2,3);
+SELECT * FROM orders WHERE user_id IN (1,2,3);
+```
+
+## 6. IN 元素过多
+
+`IN` 元素一般建议不要超过 `500` 个，如果超过了，建议分组，每次 `500` 一组进行。
+
+```sql
+-- 问题：IN 元素过多
+SELECT user_id, name FROM user WHERE user_id IN (1,2,3...1000);
+
+-- 优化：分批处理
+SELECT user_id, name FROM user WHERE user_id IN (1,2,3...500);
+SELECT user_id, name FROM user WHERE user_id IN (501,502,503...1000);
+```
+
+如果传参的 ids 太多，还可以做个参数校验。
+
+## 7. 数据库在刷脏页
+
+当内存数据页跟磁盘数据页内容不一致的时候，我们称这个内存页为 "**脏页**"。内存数据写入到磁盘后，内存和磁盘上的数据页的内容就一致了，称为 "**干净页**"。一般有更新 SQL 才可能会导致脏页。
+
+**监控命令：**
+```sql
+-- 查看脏页情况
+SHOW STATUS LIKE 'Innodb_buffer_pool_pages_dirty';
+```
+
+## 8. ORDER BY 文件排序
+
+当 `ORDER BY` 无法使用索引时，MySQL 会使用文件排序，这会导致性能问题。
+
+**优化方案：**
+- 为 `ORDER BY` 字段添加索引
+- 使用覆盖索引
+- 避免 `SELECT *`，只查询需要的字段
+
+```sql
+-- 问题：文件排序
+SELECT * FROM user ORDER BY create_time;
+
+-- 优化：添加索引
+CREATE INDEX idx_create_time ON user(create_time);
+```
+
+## 9. 拿不到锁
+
+表被锁住了，可以用 `SHOW PROCESSLIST` 命令，看看当前语句处于什么状态。
+
+```sql
+-- 查看当前进程
+SHOW PROCESSLIST;
+
+-- 查看锁等待情况
+SELECT * FROM information_schema.INNODB_LOCKS;
+```
+
+## 10. DELETE + IN 子查询不走索引
+
+MySQL 对 `SELECT IN` 子查询做了优化，把子查询改成 `JOIN` 的方式，所以可以走索引，对于 `DELETE IN` 子查询，MySQL 却没有对它做这个优化。
+
+```sql
+-- 问题：DELETE IN 不走索引
+DELETE FROM user WHERE id IN (SELECT user_id FROM orders WHERE status = 0);
+
+-- 优化：使用 JOIN
+DELETE u FROM user u 
+INNER JOIN orders o ON u.id = o.user_id 
+WHERE o.status = 0;
+```
+
+## 11. GROUP BY 使用临时表
+
+`GROUP BY` 一般用于分组统计，它表达的逻辑就是根据**一定的规则**，**进行分组**。日常开发中，我们使用得比较频繁。如果不注意，很容易产生慢 SQL。
+
+**优化方案：**
+- `GROUP BY` 后面的字段加索引
+- `ORDER BY NULL` 不用排序
+- 尽量只使用内存临时表
+- 使用 `SQL_BIG_RESULT`
+
+```sql
+-- 优化示例
+SELECT user_id, COUNT(*) 
+FROM orders 
+GROUP BY user_id 
+ORDER BY NULL;
+```
+
+## 12. 系统硬件或网络资源
+
+- 如果数据库服务器内存、硬件资源，或者网络资源配置不是很好，这时候可以升级配置。
+- 如果数据库压力本身很大，比如高并发场景下，大量请求到数据库来，数据库服务器 `CPU` 占用很高或者 `IO利用率`很高，这种情况下所有语句的执行都有可能变慢。
+
+## 13. 其他
+
+如果测试环境数据库的一些参数配置，和生产环境参数配置不一致的话，也容易产生慢 SQL。之前见过一个慢 SQL 的生产案例，就是测试环境用了 `index merge`，所以查看 `EXPLAIN` 执行计划时，是可以走索引的，但是到了生产，却全表扫描，最后排查发现是生产环境配置把 `index merge` 关闭。
+
+## 总结
+
+MySQL 慢查询优化是一个系统性工程，需要从多个维度进行分析和优化：
+
+### 核心优化原则
+
+1. **索引优化**：合理设计索引，避免索引失效
+2. **SQL 优化**：编写高效的 SQL 语句，避免全表扫描
+3. **架构优化**：合理设计表结构，必要时进行分库分表
+4. **监控优化**：建立完善的监控体系，及时发现问题
+
+### 常用分析工具
+
+- `EXPLAIN`：分析 SQL 执行计划
+- `SHOW PROCESSLIST`：查看当前进程
+- `SHOW STATUS`：查看数据库状态
+- 慢查询日志：记录慢查询信息
+
+### 最佳实践
+
+- 定期分析慢查询日志
+- 建立性能基准测试
+- 制定数据库优化规范
+- 定期进行性能调优
+
+---
+
+> **参考资料：**
+> - 原文作者：PHPer技术栈
+> - 原文链接：https://learnku.com/articles/68200#edce4a

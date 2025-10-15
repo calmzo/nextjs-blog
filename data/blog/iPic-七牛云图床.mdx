@@ -1,0 +1,45 @@
+---
+title: 'iPic+七牛云图床'
+date: '2022-05-06'
+tags: ['tools']
+draft: false
+summary: '关于iPic+七牛云图床的技术文章，包含详细的技术实现和最佳实践。'
+---
+
+# 注册七牛云
+
+## 注册七牛账户
+
+这点比较简单，直接到 [这里](https://portal.qiniu.com/home) 注册即可。
+
+## 在七牛中新建空间
+
+七牛的数据处理是以 **资源** 为单位的，这里我们可以简单理解为七牛中的 **文件夹**。
+登录七牛后，进入 [**添加资源**](https://portal.qiniu.com/kodo/bucket?shouldCreateBucket=true) 页面，选择添加 ****对象存储Kodo****, 新建空间，默认即可。
+
+## 在 iPic 中添加七牛图床
+打开 偏好设置，进入 图床 页，选择添加 七牛。
+
+![ipic设置七牛图床](https://qiniu.calmchen.com/blog/2022-05-06-ipicqn.png)
+
+以下分别介绍各项的意义及如何配置：
+
+****Bucket****
+七牛创建空间设置的空间名称
+****AccessKey**** 与 ****SecretKey****
+可以简单理解为七牛的隐身账户和密码
+进入 个人面板 > 密钥管理页，依次将 AK、SK 中的内容复制到 iPic 对应的 ****AccessKey****、****SecretKey**** 中
+
+![密钥管理页](https://qiniu.calmchen.com/blog/2022-05-06-qnkey.jpg)
+
+****Http 前缀****
+用于生成上传图片的完成 Http 路径
+![](https://qiniu.calmchen.com/blog/2022-05-06-qndomain-1.png)
+
+完成输入后，可以点击 ****验证**** 按钮。如果输入没有问题，则右侧会出现 ****通过**** 链接，点击后就可以看到测试时上传至七牛的图片。
+最后，点击 ****应用**** 按钮进行保存。
+注：本文中的图就是通过上述方式先上传至七牛、再粘贴至 Markdown 编辑器中，确实很方便，大家试试吧
+
+# 参考链接
+- [文档toolinbox.net/iPic](https://toolinbox.net/iPic/)
+- [在 iPic 中添加七牛云](https://www.jianshu.com/p/97bf7bbb18ee)

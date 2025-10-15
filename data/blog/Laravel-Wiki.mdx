@@ -1,0 +1,446 @@
+---
+title: 'Laravel Wiki'
+date: '2022-01-01'
+tags: ['laravel', 'documentation']
+draft: false
+summary: '关于Laravel Wiki的技术文章，包含详细的技术实现和最佳实践。'
+---
+
+# _Laravel Wiki_
+
+> - 简单易懂
+> - 短小精湛、实用性强，备忘查阅
+> - 准确性高
+
+## 1、 Laravel 响应：永远返回 JSON 响应
+
+你希望所有响应都是 JSON 格式的 ，而不是授权错误会重定向到 **/home** 或 **/login**
+，最终重定向会变成 `InvalidArgumentException: Route [login] is not defined.`
+
+### 第一步、编写 BaseRequest
+
+首先我们需要构建一个 BaseRequest 来重写 `Illuminate\Http\Request` ，修改为默认优先使用 **JSON** 响应：
+
+_app/Http/Requests/BaseRequest.php_
+
+```php
+<?php
+namespace App\Http\Requests;
+
+use Illuminate\Http\Request;
+class BaseRequest extends Request
+{
+    public function expectsJson()
+    {
+        return true;
+    }
+    public function wantsJson()
+    {
+        return true;
+    }
+}
+```
+
+### 第二步、替换 BaseRequest#
+
+在 `public/index.php` 文件中，将 `\Illumiate\Http\Request` 替换为我们的 **BaseRequest**，如下：
+
+```php
+$response = $kernel->handle(
+    $request = \App\Http\Requests\BaseRequest::capture()
+);
+```
+
+现在所有的响应都是 `application/json `，包括错误和异常。
+
+## 2、Laravel 日志管理：按日期切割日志
+
+我们可以通过修改 `config/logging.php` 配置文件中的 **channels** 选项来配置 Laravel 使用的存储机制
+
+```php
+'channels' => [
+        'stack' => [
+            'driver' => 'stack',
+            'channels' => ['daily'],
+            'ignore_exceptions' => false,
+        ],
+        'daily' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/laravel.log'),
+            'level' => 'debug',
+            'days' => 14,
+        ],
+]
+
+```
+
+## 3、Laravel 数据库：多数据源
+
+### 第一步、定义数据库链接
+
+_config/database.php_
+
+```php
+<?php
+return [
+
+    'default' => env('DB_CONNECTION', 'mysql'),
+    'connections' => [
+
+        # 主要数据库连接
+        'mysql' => [
+            'driver'    => 'mysql',
+            'host'      => 'host1',
+            'database'  => 'database1',
+            'username'  => 'user1',
+            'password'  => 'pass1',
+            'charset'   => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix'    => '',
+        ],
+
+        # 第二个链接
+        'mysql2' => [
+            'driver'    => 'mysql',
+            'host'      => 'host2',
+            'database'  => 'database2',
+            'username'  => 'user2',
+            'password'  => 'pass2',
+            'charset'   => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix'    => '',
+        ]
+    ],
+];
+```
+
+### 第二步、连接第二个数据库
+
+#### 1. Schema 表结构更改
+
+在代码迁移时，可以使用 **Schema** 提供的 `connection()` 方法：
+
+```php
+Schema::connection('mysql2')->create('some_table', function($table)
+{
+    $table->increments('id'):
+});
+```
+
+#### 2. Query 数据库查询
+
+同样的，数据库查询构造器里提供了一个 `connection()` 方法：
+
+```php
+$users = DB::connection('mysql2')->select(...);
+
+```
+
+#### 3. Eloquent 数据模型#
+
+使用 `$connection` 属性来设置默认的连接：
+
+```php
+<?php
+
+class SomeModel extends Eloquent {
+
+    protected $connection = 'mysql2';
+
+}
+```
+
+## 4、Laravel sql日志
+
+### 1、命令行创建 `QueryListener`日志监听器
+
+`php artisan make:listener QueryListener --event=Illuminate\Database\Events\QueryExecuted`
+
+### 2、在handle方法中编写记录sql的业务逻辑
+
+```php
+<?php
+
+namespace App\Listeners;
+
+use Illuminate\Database\Events\QueryExecuted;
+use Monolog\Handler\RotatingFileHandler;
+use Monolog\Logger;
+
+class QueryListener
+{
+    /**
+     * Create the event listener.
+     *
+     * @return void
+     */
+    public function __construct()
+    {
+        //
+    }
+
+    /**
+     * Handle the event.
+     *
+     * @param QueryExecuted $event
+     * @return void
+     */
+    public function handle(QueryExecuted $event)
+    {
+        try {
+            if (env('APP_DEBUG') == true) {
+                $sql = str_replace("?", "'%s'", $event->sql);
+                foreach ($event->bindings as $i => $binding) {
+                    if ($binding instanceof DateTime) {
+                        $event->bindings[$i] = $binding->format('\'Y-m-d H:i:s\'');
+                    } else {
+                        if (is_string($binding)) {
+                            $event->bindings[$i] = "'$binding'";
+                        }
+                    }
+                }
+                $log = vsprintf($sql, $event->bindings);
+                $log = str_replace("''", "'", $log);
+                $log = $log . '  [ RunTime:' . $event->time . 'ms ] ';
+                (new Logger('sql'))->pushHandler(new RotatingFileHandler(storage_path('logs/sql/sql_' . php_sapi_name() . '.log')))->info($log);
+            }
+        } catch (Exception $exception) {
+
+        }
+    }
+
+}
+
+```
+
+### 3、在event服务提供者里配置下listen属性:
+
+```php
+protected $listen = [
+        'Illuminate\Database\Events\QueryExecuted' => [
+            'App\Listeners\QueryListener',
+        ],
+];
+```
+
+## 5、自定义函数的存放位置
+
+### 1、创建文件 `app/helpers.php`
+
+```php
+<?php
+
+// 示例函数
+function foo() {
+    return "foo";
+}
+```
+
+### 2、修改项目 `composer.json`
+
+在项目 `composer.json` 中 **autoload** 部分里的 **files** 字段加入该文件即可：
+
+```php
+{
+    ...
+
+    "autoload": {
+        "files": [
+            "app/helpers.php"
+        ]
+    }
+    ...
+}
+```
+
+### 3、运行
+
+```shell
+$ composer dump-autoload
+```
+
+## 6、模型关联查询whereHas  with
+
+> - 跨库whereHas 无效， 建议查出一张表数据 whereIn查询
+
+### 1、Model 的配置
+
+```php
+<?php
+
+// Post model
+class Post extends Eloquent {
+
+    public function tag()
+    {
+        return $this->hasOne(Tag::class, 'id', 'tag_id');
+    }
+    
+    public function tags()
+    {
+        return $this->hasMany(Tag::class, 'id', 'tag_id');
+    }
+}
+
+// Tag model
+class Tag extends Eloquent()
+{
+
+    public function post()
+    {
+        return $this->hasOne(Post::class, 'id', 'post_id');
+    }
+    
+    public function posts()
+    {
+        return $this->hasMany(Post::class, 'id', 'post_id');
+    }
+    
+}
+```
+
+### 2、用法
+
+### 1、whereHas关联筛选
+
+```php
+        $tag = Post::query()
+            ->whereHas('tags', function ($query) {
+                $query->where('name', '=', 'laravel');
+            })
+            ->where('published_at', ' ≥ ', Carbon\Carbon::now()->subWeek())
+            ->get();
+```
+
+### 2、with预加载
+
+```php
+        $tag = Post::query()
+            ->with(['tags' => function ($query) {
+                $query->where('name', '=', 'laravel')->select();
+            }])
+            ->where('published_at', ' ≥ ', Carbon\Carbon::now()->subWeek())
+            ->get();
+```
+
+## 7、模型缓存
+
+[Laravel 的模型缓存](https://github.com/GeneaLabs/laravel-model-caching)
+
+## 8、laravel request 过滤参数的问题
+
+1. laravel 的update方法
+
+```php
+$book = Book::query()->find($bid);
+$book->update(request()->all());
+```
+
+2. 或者
+
+```php
+$book = Book::query()->find($bid);
+$book->save(request()->all());
+```
+
+这种操作会根据model 的$fillable 进行过滤 直接使用where+update的方式进行数据修改,request->all 方法会获取所有参数，其中包括了_token,和s
+
+3. 创建宏
+
+在 `app/Models/Traits` 下创建一个 `FillForModel` 的文件，然后把下面的代码粘贴进去，在你需要使用的模型中 `use` 这个 `trait`
+
+```php
+$model->where($where)->updateAsFill(request()->all());
+```
+
+如果觉得挨个 `use trait` 太麻烦， 那就把这一段移动到 `AppServiceProvider` 的 `register` 里面去。
+
+```php
+<?php
+
+namespace App\Models\Traits;
+
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Arr;
+
+trait FillForModel
+{
+    public function initializeFillForModel()
+    {
+        Builder::macro('updateAsFill', function ($data) {
+            $fillable = $this->getModel()->getFillable();
+            $data     = Arr::only($data, $fillable);
+            return $this->update($data);
+        });
+    }
+}
+```
+
+## 9、laravel 识别浏览器详细信息和设备类型
+
+**1.How to install**
+
+```bash
+composer require hisorange/browser-detect
+```
+
+**2.How to use**
+
+```php
+use Browser;
+
+// Determine the user's device type is simple as this:
+Browser::isMobile();
+Browser::isTablet();
+Browser::isDesktop();
+```
+
+## 10、离线IP地址定位库
+
+**1.How to install**
+
+```bash
+composer require larva/laravel-ip2region
+```
+
+**2.How to use**
+
+```php
+$info=  \Larva\Ip2Region\Ip2Region::find('218.1.2.3');
+var_export($info, true);
+
+// array (
+//     'city_id' => 2163,
+//     'region' => '中国|华南|广东省|深圳市|鹏博士',
+// )
+```
+
+## 11、微信 非官方 SDK
+
+**1.How to install**
+
+```bash
+composer require w7corp/easywechat:^5.30
+```
+
+**2.How to use**
+
+## 12、判断当前环境
+
+**方法一、`isLocal()` 方法**
+
+```php
+app()->isLocal()
+```
+
+**方法一、`environment()` 方法**
+```php
+app()->environment('local')
+```
+
+**方法三、`runningUnitTests()` 方法**
+此方法可以判断是否在单元测试中；
+
+```php
+app()->runningUnitTests()
+```

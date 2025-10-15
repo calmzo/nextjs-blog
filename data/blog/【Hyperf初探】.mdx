@@ -1,0 +1,50 @@
+---
+title: '【Hyperf初探《1、安装》】'
+date: '2022-07-13'
+tags: ['hyperf']
+draft: false
+summary: '关于【Hyperf初探《1、安装》】的技术文章，包含详细的技术实现和最佳实践。'
+---
+
+# Hyperf初探
+
+## 官网及文档
+- 官网 [https://hyperf.io](https://hyperf.io)
+- 文档 [https://hyperf.wiki](https://hyperf.wiki)
+
+## 环境
+### 两种安装方式 
+1. 通过 Composer 创建项目
+
+基于 Swoole 驱动：
+```shell
+composer create-project hyperf/hyperf-skeleton
+```
+基于 Swow 驱动：
+
+```shell
+composer create-project hyperf/swow-skeleton
+```
+2. Docker 下开发
+
+### 本地部署
+由于mac本机docker环境部署laravel环境，暂采用mac本地环境部署hyperf
+- PHP ≥ 7.4 and ≤ 8.0
+- 以下任一网络引擎
+  - Swoole PHP 扩展 ≥ 4.5，并关闭了 Short Name
+  - Swow PHP 扩展 (Beta)
+- JSON PHP 扩展
+- Pcntl PHP 扩展
+- OpenSSL PHP 扩展（如需要使用到 HTTPS）
+- PDO PHP 扩展 （如需要使用到 MySQL 客户端）
+- Redis PHP 扩展 （如需要使用到 Redis 客户端）
+- Protobuf PHP 扩展 （如需要使用到 gRPC 服务端或客户端）
+
+扩展编译安装
+[点击这里查看这篇文章](../posts/3fc5bd43.html)
+
+### 遇到问题：
+```shell
+[ERROR] Swoole short function names must be disabled before the server starts, please set swoole.use_shortname = 'Off' in your php.ini.
+```
+您需要在您的 php.ini 配置文件增加 **swoole.use_shortname = 'Off'** 配置项

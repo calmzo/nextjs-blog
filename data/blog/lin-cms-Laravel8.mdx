@@ -1,0 +1,158 @@
+---
+title: 'lin-cms-Laravel8'
+date: '2022-08-25'
+tags: ['laravel']
+draft: false
+summary: '关于lin-cms-Laravel8的技术文章，包含详细的技术实现和最佳实践。'
+---
+
+# lin-cms-Laravel8
+
+## Lin CMS？
+
+> `Lin-CMS` 是林间有风团队经过大量项目实践所提炼出的一套**内容管理系统框架**。`Lin-CMS` 可以有效的帮助开发者提高 `CMS` 的开发效率。
+
+本项目是基于Laravel 8的 Lin CMS 后端实现。
+官方团队产品了解请访问[TaleLin](https://github.com/TaleLin)
+
+## Lin CMS 的特点
+
+**Lin CMS 是一个前后端分离的 CMS 解决方案**
+这意味着，Lin 既提供后台的支撑，也有一套对应的前端系统。为什么 Lin 要选择前后端分离的单页面架构呢？
+首先，传统的网站开发更多的是采用服务端渲染的方式，需用使用一种模板语言在服务端完成页面渲染：比如 JinJa2、Jade 等。 服务端渲染的好处在于可以比较好的支持 SEO，但作为内部使用的 CMS 管理系统，SEO 并不重要。
+但一个不可忽视的事实是，服务器渲染的页面到底是由前端开发者来完成，还是由服务器开发者来完成？其实都不太合适。现在已经没有多少前端开发者是了解这些服务端模板语言的，而服务器开发者本身是不太擅长开发页面的。那还是分开吧，前端用最熟悉的 Vue
+写 JS 和 CSS，而服务器只关注自己的 API 即可。
+
+其次，单页面应用程序的体验本身就要好于传统网站。
+
+更多关于Lin CMS的介绍请访问[Lin CMS线上文档](http://doc.cms.7yue.pro/)
+
+**框架本身已内置了 CMS 常用的功能**
+
+Lin 已经内置了 CMS 中最为常见的需求：用户管理、权限管理、日志系统等。开发者只需要集中精力开发自己的 CMS 业务即可
+
+## 项目开源地址
+
+[https://github.com/calmzo/lin-cms-laravel8](https://github.com/calmzo/lin-cms-laravel8)
+
+## 基础
+
+熟悉PHP 和 Vue。
+Lin 的服务端框架是基于 Laravel8
+
+## 开发
+
+### 开发环境搭建
+
+mac docker部署本地`开发环境`
+
+### 准备工作
+
+- 导入表
+
+### 重构流程
+
+1. 用户认证 - jwt集成
+2. validate校验器封装
+3. 异常返回封装
+4. 自定义函数类
+5. 文件存储- 文件上传
+6. 事件系统 - 行为日志事件
+7. sql日志打印
+8. 用户权限管理 (权限注解)
+9. 多对多关联操作
+10. 腾讯云点播获取上传签名
+11. 支付宝支付 支付回调
+
+### develop_business 业务流程
+1. 下单 -> 统计数量
+2. 定时任务取消未支付订单
+3. 支付完成->新建待发货任务
+4. 定时执行自动发货任务
+5. 通知
+6. 订单完成加积分
+
+### 问题
+
+#### 常用目录路径获取【权限】
+
+1. app_path()
+app_path函数返回app目录的绝对路径：
+```bash
+$path = app_path();
+```
+
+app_path函数为相对于app目录的给定文件生成绝对路径：
+```bash
+$path = app_path('Http/Controllers/Controller.php');
+
+```
+
+2. base_path()
+
+base_path函数返回项目根目录的绝对路径：
+
+```bash
+$path = base_path();
+```
+
+base_path函数为相对于应用目录的给定文件生成绝对路径：
+
+```bash
+$path = base_path('vendor/bin');
+
+```
+3. config_path()
+
+config_path函数返回应用配置目录的绝对路径：
+
+```bash
+$path = config_path();
+
+```
+4. database_path()
+
+database_path函数返回应用数据库目录的绝对路径：
+
+```bash
+$path = database_path();
+
+```
+5. public_path()
+
+public_path函数返回public目录的绝对路径：
+
+```bash
+$path = public_path();
+
+```
+6. storage_path()
+
+storage_path函数返回storage目录的绝对路径：
+
+```bash
+$path = storage_path();
+
+```
+还可以使用storage_path函数生成相对于storage目录的给定文件的绝对路径：
+
+```bash
+$path = storage_path('app/file.txt');
+
+```
+
+#### 反射机制 权限
+php 核心反射类
+
+```bash
+composer require wangyu/reflex-core
+```
+采用注解
+
+#### 软删除重写
+SoftDeletes重写
+
+#### root权限问题
+user_group必须默认有root用户关联root分组
+
+#### migrate数据迁移

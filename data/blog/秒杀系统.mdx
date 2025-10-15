@@ -1,0 +1,322 @@
+---
+title: '秒杀、抽奖系统设计'
+date: '2022-08-12'
+tags: ['system-design', 'high-concurrency']
+draft: false
+summary: '关于秒杀、抽奖系统设计的技术文章，包含详细的技术实现和最佳实践。'
+---
+
+# 秒杀系统
+
+## 问题：
+### 1. 防止用户重复抽奖
+#### 方案:
+在负载均衡设备中做一些配置，判断如果同一个用户在1分钟之内多次发送请求来进行抽奖，就认为是恶意**重复抽奖**，或者是脚本刷奖，这种流量一律认为是无效流量，在负载均衡设备层次就给屏蔽掉
+
+### 2.全部开奖后暴力拦截流量
+#### 场景：
+假设有50万请求涌入,只需5万请求，后续的几十万流量无效，不需要让它们进入后台系统执行业务逻辑
+
+#### 方案：
+必须让**抽奖服务**跟**负载均衡**之间有一个状态共享的机制
+抽奖服务一旦全部开奖完毕，直接更新一个**共享状态**。然后**负载均衡**感知到了之后，后续请求全部拦截掉返回一个抽奖结束的标识
+基于`Redis`来实现这种共享抽奖状态
+
+### 3、发放礼品环节进行限流削峰
+#### 问题：
+假设抽奖服务在2万请求中有1万请求抽中了奖品，那么势必会造成抽奖服务对礼品服务调用1万次。
+
+#### 方案：
+1. 抽奖之后可以让礼品服务在后台慢慢的把中奖的礼品给发放出去，不需要立马对1万个请求完成礼品的发放逻辑
+2. 可以在抽奖服务和礼品服务之间，引入消息中间件，进行**限流削峰**
+3. 抽奖服务把中奖信息发送到MQ，然后礼品服务，慢慢的从MQ中消费中奖消息
+
+## 优化方向
+
+秒杀业务，可以使用典型的服务化分层架构：
+- 端（浏览器/APP），最上层，面向用户
+- 站点层，访问后端数据，拼装html/json返回
+- 服务层，屏蔽底层数据细节，提供数据访问
+- 数据层，DB存储库存，当然也有缓存
+
+### 1、端上的请求拦截（浏览器/APP）
+- JS层面
+**可以限制用户在x秒之内只能提交一次请求**，从而降低系统负载。
+频繁提交，可以友好提示“频率过快”。
+
+- APP层面
+可以做类似的事情，虽然用户疯狂的在摇微信抢红包，但其实x秒才向后端发起一次请求。
+将请求尽量拦截在系统上游”，浏览器/APP层就能拦截80%+的请求。
+
+端上的拦截只能挡住普通用户（99%的用户是普通用户），程序员firebug一抓包，写个for循环直接调用后端http接口，js拦截根本不起作用
+
+### 2、站点层的请求拦截
+- 用`uid`做唯一标识。
+- 在站点层，**对同一个uid的请求进行计数和限速**，例如：一个uid，5秒只准透过1个请求，这样能拦住99%的for循环请求。
+- 缓存，页面缓存，5秒内到达站点层的其他请求，均返回上次返回的页面。
+
+解决方向：
+1. **站点层水平扩展**，通过加机器扩容，一台抗5000，200台搞定；
+2. **服务降级**，抛弃请求，例如抛弃50%；
+
+同一个uid计数与限速，如果担心访问redis带宽成为瓶颈，可以这么优化：
+1. 计数直接放在内存，这样就省去了网络请求；
+2. 在nginx层做7层均衡，让一个uid的请求落到同一个机器上；
+
+### 3、服务层的请求拦截
+- 削峰限速
+- 假如数据库每秒只能抗500个写请求，就只透传500个（请求**队列**）
+- 读请求优化（不管是memcached还是redis，单机抗个每秒10w应该都是没什么问题。缓存做水平扩展，很容易线性扩容）
+
+### 4、数据库层
+经过前三层的优化：
+- 浏览器拦截了80%请求
+- 站点层拦截了99%请求，并做了页面缓存
+- 服务层根据业务库存，以及数据库抗压能力，做了写请求队列与数据缓存
+
+db无需分库，数据库做一个高可用就行
+
+## 实现【Redis】
+基于Redis实现抽奖业务逻辑
+### 1.初始化：
+秒杀商品，将商品以list数据类型存入redis（每个数量为一个元素）
+
+### 2.购买：
+1）购买用户入队列，如果用户队列长度超过指定的排队长度，则返回排队数过多
+2）如果用户队列长度小于指定的排队长度，然后生成订单，减去库存。下单完成
+
+## 示例：
+```php
+
+    //排队人数
+    private $listNumber = 50;
+    /**
+     * 设置库存
+     * @param $data
+     * @return int
+     */
+    public function setGoodsCount($data)
+    {
+        $gid = $data['gid'] ?? 0;
+        $count = $data['count'] ?? 0;
+        $good = Goods::query()->where('id', $gid)->first();
+        if ($good && $count > 0) {
+            //更新商品库存
+            $good->store = $count;
+            $good->save();
+            $queueKey = sprintf("goods:count:good_%s", $gid);
+            $len = Redis::llen($queueKey);
+            $num = $count - $len;
+            //更新redis list
+            if ($num ≥ 0) {
+                for ($i = 0; $i < $num; $i++) {
+                    Redis::lpush($queueKey, $gid);
+                }
+            } else {
+                for ($i = $num; $i < 0; $i++) {
+                    Redis::lPop($queueKey);
+                }
+            }
+
+        }
+        return $count;
+    }
+
+    /**
+     * 基于redis队列验证库存信息
+     * @desc Redis是底层是单线程的,命令执行是原子操作,包括lPush,rPop等.高并发下不会导致超卖
+     * @param $gid
+     * @return bool
+     * @throws BusinessException
+     */
+    public function seckill($data)
+    {
+        $gid = $data['gid'] ?? 0;
+        $userId = $data['user_id'] ?? 0;
+        $good = Goods::query()->where('id', $gid)->first();
+        if (is_null($good)) {
+            throw new BusinessException(CodeResponse::FAIL, '商品不存在');
+        }
+        #访问用户入队接口
+        $checkUserRes = $this->checkUserNum($userId, $gid);
+        if (!$checkUserRes) {
+            throw new BusinessException(CodeResponse::FAIL, '排队数大于商品总数');
+        }
+
+        $queueKey = sprintf("goods:count:good_%s", $gid);
+        #消费商品,从队列中取出商品
+        $count = Redis::lPop($queueKey);
+        if (!$count) {
+            throw new BusinessException(CodeResponse::FAIL, '商品已抢光');
+        }
+        // 进入redis锁 锁住这个key 10秒的时间
+        if (Cache::lock('order:lock', 10)->get()) {
+            //业务逻辑
+            $orderRes = $this->storeOrder($userId, $gid, '1');
+            if (!$orderRes) {
+                //释放
+                Cache::lock('order:lock')->release();
+                throw new BusinessException(CodeResponse::FAIL, '生成订单失败');
+            } else {
+                #释放锁
+                Cache::lock('order:lock')->release();
+                return true;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 将用户也存入队列中（就是将访问请求数据）(此处没有进行用户过滤，同一个用户进行多次请求也会进入队列)
+     */
+    private function checkUserNum($userId, $gid)
+    {
+        $userKey = sprintf("goods:user_list_%s", $gid);
+        $res = Redis::llen($userKey);
+        #判断排队数
+        if ($res = Redis::llen($userKey) > $this->listNumber) {
+            // return '排队数大于商品总数';
+            return false;
+        }
+        #添加数据
+        Redis::lpush($userKey, $userId);
+        return true;
+    }
+
+    /**
+     * 下单
+     * @param $userId
+     * @param $gid
+     * @param $number
+     * @return bool
+     * @throws \Exception
+     */
+    private function storeOrder($userId, $gid, $number)
+    {
+        try {
+            #开启事务
+            DB::beginTransaction();
+            #查询库存sharedLock()共享锁，可以读取到数据，事务未提交不能修改，直到事务提交
+            #lockForUpdate()不能读取到数据
+            $resutl = Goods::query()->where(['id' => $gid])->lockForUpdate()->first();
+            #添加订单
+            if ($resutl) {
+                $orderRes = Order::query()->create([
+                    'user_id' => $userId,
+                    'goods_id' => $gid,
+//                    'goods_number' => $number,
+//                    'ordersn' => $this->buildOrderNo(),
+//                    'price' => $resutl->price,
+                ]);
+                #减少库存
+                $goodsRes = Goods::query()->where('id', $gid)->where('store', '>', 0)->decrement('store');
+                #将用户从队列里面弹出,允许下一个用户进来
+                $userKey = sprintf("goods:user_list_%s", $gid);
+                Redis::rpop($userKey);
+                if ($orderRes->id > 0 && $goodsRes > 0) {
+                    DB::commit();
+                    return true;
+                }
+            }
+
+            DB::rollBack();
+            return false;
+
+        } catch (\Exception $e) {
+            throw $e;
+        }
+    }
+
+    /**
+     * 生成唯一订单号
+     */
+    private function buildOrderNo()
+    {
+        return date('ymd') . substr(implode(NULL, array_map('ord', str_split(substr(uniqid(), 7, 13), 1))), 0, 8);
+    }
+```
+
+## 压测
+```bash
+ab -n 40 -c 30 -k localhost:8105/api/goods/seckill/1006002
+```
+```bash
+##服务器软件和版本
+Server Software:        nginx/1.21.6
+##请求的地址/域名
+Server Hostname:        localhost
+##端口
+Server Port:            8105
+
+##请求的路径
+Document Path:          /api/goods/seckill/1006002
+##页面数据/返回的数据量
+Document Length:        47 bytes
+
+##并发数
+Concurrency Level:      30
+##共使用了多少时间 
+Time taken for tests:   7.030 seconds
+##请求数 
+Complete requests:      40
+##失败请求
+Failed requests:        20
+   (Connect: 0, Receive: 0, Length: 20, Exceptions: 0)
+Keep-Alive requests:    0
+##总共传输字节数，包含http的头信息等 
+Total transferred:      13100 bytes
+##html字节数，实际的页面传递字节数 
+HTML transferred:       2020 bytes
+ ##每秒多少请求，这个是非常重要的参数数值，服务器的吞吐量 
+Requests per second:    5.69 [#/sec] (mean)
+##用户平均请求等待时间 
+Time per request:       5272.218 [ms] (mean)
+##服务器平均处理时间，也就是服务器吞吐量的倒数 
+Time per request:       175.741 [ms] (mean, across all concurrent requests)
+ ##每秒获取的数据长度
+Transfer rate:          1.82 [Kbytes/sec] received
+
+##连接的最小时间，平均值，中值，最大值
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        0    2   1.2      2       3
+##处理时间
+Processing:   671 3200 1388.0   3591    5231
+##等待时间
+Waiting:      668 3198 1388.3   3591    5230
+##合计时间
+Total:        671 3201 1387.3   3592    5232
+
+Percentage of the requests served within a certain time (ms)
+  50%   3592
+  ## 50%的请求在373ms内返回 
+  66%   4255
+  ## 60%的请求在400ms内返回 
+  75%   4454
+  80%   4499
+  90%   4756
+  95%   5006
+  98%   5232
+  99%   5232
+ 100%   5232 (longest request)
+
+```
+
+## 总结
+核心思路都是对于这种瞬时超高流量的系统，尽可能在负载均衡层就把99%的无效流量拦截掉（**尽量将请求拦截在系统上游**）
+然后在1%的流量进入核心业务服务后，此时每秒并发还是可能会上万，那么可以基于Redis实现核心业务逻辑 ，抗住上万并发（**读多写少用缓存**）
+最后对于类似秒杀商品发货、抽奖商品发货、红包资金转账之类的非常耗时的操作，完全可以基于MQ消息队列队列来限流削峰，后台有一个服务慢慢执行即可
+
+## 补充
+抽奖的话，可以先在nginx层，或者是网关层，随机拒绝大部分请求，能进入到业务逻辑里面的，都是中了奖的，
+
+## 业务折中方案
+### 下单流程和支付流程异步
+下单成功后，系统占住库存，45分钟之内支付即可
+
+### 不同地域分时抢购
+
+### 一旦点击，不管系统是否返回，按钮立刻置灰
+
+### 降低缓存淘汰率
+显示库存会淘汰N次，显示有无只会淘汰1次。更多的，用户关注是否有票，而不是票有几张

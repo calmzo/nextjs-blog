@@ -1,0 +1,60 @@
+---
+title: '【Mac编译安装PHP扩展】'
+date: '2022-07-11'
+tags: ['php', 'mac']
+draft: false
+summary: '关于【Mac编译安装PHP扩展】的技术文章，包含详细的技术实现和最佳实践。'
+---
+
+# Mac安装PHP扩展
+
+## 查看php.ini位置
+```shell
+php --ini
+```
+
+## 查看php安装位置
+```shell
+vim ~/.zshrc
+```
+
+## 编译安装扩展
+
+### swoole
+#### 下载编译安装
+```shell
+cd /usr/local/opt/php@7.4/include/php/ext 
+wget http://pecl.php.net/get/swoole-4.5.3.tgz
+tar -zxvf swoole-4.5.3.tgz
+cd swoole-4.5.3
+/usr/local/opt/php@7.4/bin/phpize
+./configure --with-php-config=/usr/local/opt/php@7.4/bin/php-config
+make
+make install
+```
+
+#### 在php.ini加上 extension=swoole
+
+### redis
+#### 下载编译安装
+```shell
+git clone https://github.com/nicolasff/phpredis.git
+cd phpredis
+/usr/local/opt/php@7.4/bin/phpize
+./configure --with-php-config=/usr/local/opt/php@7.4/bin/php-config
+make
+make install
+```
+
+#### 在php.ini加上 extension=redis.so
+
+## 重启php
+```shell
+brew services list
+brew services restart php@7.4
+```
+
+## 查看扩展
+```shell
+php -m
+```

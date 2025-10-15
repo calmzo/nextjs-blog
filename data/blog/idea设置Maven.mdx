@@ -1,0 +1,107 @@
+---
+title: 'idea设置Maven'
+date: '2022-05-13'
+tags: ['maven']
+draft: false
+summary: '关于idea设置Maven的技术文章，包含详细的技术实现和最佳实践。'
+---
+
+>  Maven版本：3.6.3
+>  IDEA版本：2021.3
+
+# 1、IDEA集成Maven插件
+
+## 1、打开设置
+打开 IDEA，进入主界面后点击 Customize，然后点击 All settings
+![设置](https://qiniu.calmchen.com/blog/2022-05-13-idea-maven-1.png)
+
+## 2、设置maven
+修改 maven 的路径（使用本地的 Maven），以及修改 settings 文件的位置和本地仓库的位置。。
+![设置Maven](https://qiniu.calmchen.com/blog/2022-05-13-idea-maven-2.png)
+
+## 3、推荐配置
+> 设置 maven 在不联网的情况下使用本地插件
+> 一般使用 maven 为我们提供好的骨架时，是需要联网的，配置这个，可以在没有网路的情况下，我们可以正常创建工程，并从之前已经使用过的工程中找到相应的骨架。
+> 输入内容：-DarchetypeCatalog=internal
+
+![设置Maven](https://qiniu.calmchen.com/blog/2022-05-13-idea-maven-3.png)
+
+## 4、setting.xml设置
+### 1、配置阿里云镜像（在setting.xml文件中配置）
+
+```xml
+<mirrors>
+    <mirror>
+        <id>alimaven</id>
+        <mirrorOf>central</mirrorOf>
+        <name>aliyun maven</name>
+        <url>http://maven.aliyun.com/nexus/content/repositories/central/</url>
+    </mirror>
+    <mirror>
+        <id>alimaven</id>
+        <name>aliyun maven</name>
+        <url>http://maven.aliyun.com/nexus/content/groups/public/</url>
+        <mirrorOf>central</mirrorOf>
+    </mirror>
+    <mirror>
+        <id>central</id>
+        <name>Maven Repository Switchboard</name>
+        <url>http://repo1.maven.org/maven2/</url>
+        <mirrorOf>central</mirrorOf>
+    </mirror>
+    <mirror>
+        <id>repo2</id>
+        <mirrorOf>central</mirrorOf>
+        <name>Human Readable Name for this Mirror.</name>
+        <url>http://repo2.maven.org/maven2/</url>
+    </mirror>
+    <mirror>
+        <id>ibiblio</id>
+        <mirrorOf>central</mirrorOf>
+        <name>Human Readable Name for this Mirror.</name>
+        <url>http://mirrors.ibiblio.org/pub/mirrors/maven2/</url>
+    </mirror>
+    <mirror>
+        <id>jboss-public-repository-group</id>
+        <mirrorOf>central</mirrorOf>
+        <name>JBoss Public Repository Group</name>
+        <url>http://repository.jboss.org/nexus/content/groups/public</url>
+    </mirror>
+    <mirror>
+        <id>google-maven-central</id>
+        <name>Google Maven Central</name>
+        <url>https://maven-central.storage.googleapis.com
+    </url>
+        <mirrorOf>central</mirrorOf>
+    </mirror>
+    <mirror>
+        <id>maven.net.cn</id>
+        <name>oneof the central mirrors in china</name>
+        <url>http://maven.net.cn/content/groups/public/</url>
+        <mirrorOf>central</mirrorOf>
+    </mirror>
+</mirrors>
+
+```
+### 2、配置默认 JDK 版本（在 setting.xml 文件中配置）
+
+```xml
+<profile>
+    <id>jdk-1.8</id>
+    <activation>
+        <activeByDefault>true</activeByDefault>
+        <jdk>1.8</jdk>
+    </activation>
+    <properties>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+        <maven.compiler.compilerVersion>1.8</maven.compiler.compilerVersion>
+    </properties>
+</profile>
+
+```
+
+### 3、配置 Maven 仓库地址
+```xml
+  <localRepository>/Users/calm/.m2/repository</localRepository>
+```

@@ -1,0 +1,109 @@
+---
+title: '【JAVA】环境配置'
+date: '2022-05-16'
+tags: ['java', 'setup']
+draft: false
+summary: '关于【JAVA】环境配置的技术文章，包含详细的技术实现和最佳实践。'
+---
+
+> 前期准备
+
+## 1、Jdk安装
+### 1.下载合适版本：
+Java JDK下载地址：
+[Java JDK下载地址](https://www.oracle.com/java/technologies/downloads/)
+需要下载macOS下的dmg的格式的，根据Mac芯片的不同下载不同的版本；inter芯片的下载X64版本，M芯片下载Arm64版本
+
+### 2.点击安装
+双击下载好的dmg
+通过JDK官方下载地址中的dmg文件进行安装后，如果想知道具体安装到哪个目录，可以执行下面的命令进行查看：
+```shell
+/usr/libexec/java_home -V
+```
+效果：
+```shell
+Matching Java Virtual Machines (2):
+    1.8.331.09 (x86_64) "Oracle Corporation" - "Java" /Library/Internet Plug-Ins/JavaAppletPlugin.plugin/Contents/Home
+    1.8.0_331 (x86_64) "Oracle Corporation" - "Java SE 8" /Library/Java/JavaVirtualMachines/jdk1.8.0_331.jdk/Contents/Home
+/Library/Internet Plug-Ins/JavaAppletPlugin.plugin/Contents/Home
+```
+
+### 3、环境变量配置
+编辑***.bash_profile*** 文件，这是 Mac 配置各种环境变量的地方
+
+```shell
+vim ~/.bash_profile
+```
+编辑
+
+```
+JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk1.8.0_331.jdk/Contents/Home
+CLASSPATH=$JAVA_HOME/lib/tools.jar:$JAVA_HOME/lib/dt.jar:.
+PATH=$JAVA_HOME/bin:$PATH:.
+export JAVA_HOME
+export PATH
+export CLASSPATH
+```
+配置生效：
+
+```shell
+source .bash_profile
+```
+
+检查下 Java 环境是否生效，终端输入命令：java -version
+```shell
+java -version
+```
+显示
+
+```
+java version "1.8.0_331"
+Java(TM) SE Runtime Environment (build 1.8.0_331-b09)
+Java HotSpot(TM) 64-Bit Server VM (build 25.331-b09, mixed mode)
+```
+## 2、Maven安装
+见mac安装maven
+
+## 3、mac Nacos部署
+
+### 1、了解Nacos
+> 了解Nacos
+> 什么是Nacos https://nacos.io/zh-cn/docs/what-is-nacos.html
+
+### 2、下载
+下载地址：https://github.com/alibaba/Nacos/releases
+
+包说明
+> - log           nacos生成日志说明
+> - bin           nacos服务相关脚本目录，
+> - conf          nacos的配置文件目录
+> - target        nacos的启动依赖目录
+> - data          nacos自带apache-derby数据库，data存放数据内容
+
+## 3、操作
+终端切换到nacos下的bin目录
+```shell
+cd bin
+```
+进入解压目录的bin目录下，打开终端，输入命令启动，输出nacos is starting with standalone即为成功
+
+```shell
+sh startup.sh -m standalone
+```
+
+浏览器访问进入可视化页面，账号密码都是nacos，进行登录即可，nacos的端口为8848
+```
+http://127.0.0.1:8848/nacos/#/login
+```
+关闭nacos
+```shell
+sh shutdown.sh
+```
+
+但发现关闭后，仍然能在可视化页面连接nacos，所以需要杀死8848端口的进程
+
+```//查询8848端口的进程，获取到进程id，例如是62837
+lsof -i:8848
+//杀死62837进程
+kill -9 62837
+```

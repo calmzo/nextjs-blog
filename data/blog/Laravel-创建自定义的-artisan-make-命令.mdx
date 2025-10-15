@@ -1,0 +1,110 @@
+---
+title: 'Laravel 创建自定义的 artisan make 命令'
+date: '2022-09-04'
+tags: ['laravel', 'laravel']
+draft: false
+summary: '关于Laravel 创建自定义的 artisan make 命令的技术文章，包含详细的技术实现和最佳实践。'
+---
+
+# Laravel 创建自定义的 artisan make 命令
+
+> 通过 artisan make:repository 命令自动创建类文件而不是都每次手动创建
+
+## 1、创建命令类
+在 `app\Console\Commands` 文件夹下创建 `RepositoryMakeCommand.php` 文件
+```php
+<?php
+
+namespace App\Console\Commands;
+
+use Illuminate\Console\GeneratorCommand;
+
+class RepositoryMakeCommand extends GeneratorCommand
+{
+    /**
+     * The name and signature of the console command.
+     *
+     * @var string
+     */
+    protected $name = 'make:repository';
+
+    /**
+     * The console command description.
+     *
+     * @var string
+     */
+    protected $description = 'Create a new repository class';
+
+    /**
+     * The type of class being generated.
+     *
+     * @var string
+     */
+    protected $type = 'Repository';
+
+    /**
+     * Get the stub file for the generator.
+     *
+     * @return string
+     */
+    protected function getStub()
+    {
+        return __DIR__.'/stubs/repository.stub';
+    }
+
+    /**
+     * Get the default namespace for the class.
+     *
+     * @param  string  $rootNamespace
+     * @return string
+     */
+    protected function getDefaultNamespace($rootNamespace)
+    {
+        return $rootNamespace.'\Repositories';
+    }
+}
+```
+
+## 2、创建命令类对应的模版文件
+> - 在 `app\Console\Commands\stubs` 下创建模版文件 `.stub` 文件是 make 命令生成的类文件的模版，用来定义要生成的类文件的通用部分
+> - `repository`类 Repository 开发模式的支持
+> 
+创建 `repository.stub` 模版文件：
+
+```php
+<?php
+
+namespace DummyNamespace;
+
+use Prettus\Repository\Eloquent\BaseRepository;
+
+class DummyClass extends BaseRepository
+{
+
+    /**
+     * Specify Model class name
+     *
+     * @return string
+     */
+    public function model()
+    {
+        //set model name in here, this is necessary!
+    }
+}
+
+```
+
+## 3、注册命令类
+将 `RepositoryMakeCommand` 添加到 `App\Console\Kernel.php` 中
+```php
+ protected $commands = [
+        Commands\RepositoryMakeCommand::class
+    ];
+```
+
+## 4、使用命令
+通过 `php artisan make:repository` 命令来创建 `repository` 类文件
+```bash
+php artisan make:repository TestRepository
+
+```

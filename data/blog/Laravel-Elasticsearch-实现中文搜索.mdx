@@ -1,0 +1,332 @@
+---
+title: 'Laravel + Elasticsearch 实现中文搜索'
+date: '2022-04-29'
+tags: ['laravel', 'elasticsearch']
+draft: false
+summary: '关于Laravel + Elasticsearch 实现中文搜索的技术文章，包含详细的技术实现和最佳实践。'
+---
+
+# Laravel + Elasticsearch 实现中文搜索
+
+## 步骤：
+
+- Laravel7 配置 Scout
+- 配置 Model 模型
+- 导入数据
+- 搜索
+
+### 搜索范围
+
+- 文章内容
+- 标题
+- 标签
+
+### 结果权重
+
+1. 出现关键词数量
+2. 出现关键词次数
+
+### 搜索页面
+
+- 高亮显示
+- 分词显示
+- 结果分页
+
+## 前言
+
+Laravel + Elasticsearch 很多前辈都写过教程和案例，但是随着 Elasticsearch 和 laravel 的版本升级 以前的文章很多都不适用新版本的，建议大家使用任何开源项目时应该过一遍文档以当前使用的版本文档为主，教程为辅
+
+- Elasticsearch 7.9
+- Laravel 7
+- elasticsearch-analysis-ik v7.9
+
+### 参考
+
+- ik 中文分词插件
+- elasticsearch 官方文档
+
+### 使用集成 ik中文分词插件的 Elasticsearch
+
+Laravel 项目中使用 Elasticsearch
+
+Elasticsearch 官方有提供 SDK，在 Laravel 项目中可以更加优雅快速的接入 Elasticsearch，Laravel 本身有提供 Scout 全文搜索 的解决方案，我们只需将默认的 Algolia 驱动 替换成 ElasticSearch驱动。
+
+### 安装
+
+- laravel/scout
+- matchish/laravel-scout-elasticsearch
+
+```shell
+$ composer require laravel/scout
+$ composer require matchish/laravel-scout-elasticsearch
+```
+
+### 配置
+
+生成 Scout 配置文件 (config/scout.php)
+```shell
+php artisan vendor:publish --provider="Laravel\Scout\ScoutServiceProvider"
+```
+
+Copied File [\vendor\laravel\scout\config\scout.php] To [\config\scout.php]
+Publishing complete.
+
+### 指定 Scout 驱动
+
+- 第一种：在.env 文件中指定（建议）
+- 第二种：在 config/scout.php 直接修改默认驱动
+'driver' => env('SCOUT_DRIVER', 'algolia')
+改为
+'driver' => env('SCOUT_DRIVER', 'Matchish\ScoutElasticSearch\Engines\ElasticSearchEngine')
+指定 Elasticsearch 服务 IP 端口
+
+在.env 中配置
+ELASTICSEARCH_HOST=172.17.0.1:9200
+注册服务
+config/app.php
+
+``` php
+'providers' => [
+// Other Service Providers
+\Matchish\ScoutElasticSearch\ElasticSearchServiceProvider::class
+],
+```
+
+清除配置缓存
+
+```shell
+php artisan config:clear
+```
+
+至此 laravel 已经接入 Elasticsearch
+
+实际业务中使用
+需求
+
+通过博客右上角的搜索框可以搜索到与关键词相关的文章，从以下几点匹配
+
+商品名称
+商品desc
+
+品牌名称
+
+品牌desc
+
+分类名称
+
+分类desc
+
+涉及到 3 张 Mysql 表 以及字段
+
+为文章配置 Elasticsearch 索引
+创建索引配置文件（config/elasticsearch.php）
+
+elasticsearch.php 配置字段映射
+
+```php
+
+return [
+    'host' => env('ELASTICSEARCH_HOST'),
+    'indices' => [
+        'mappings' => [
+            'goods' => [
+                "properties" => [
+                    "goods-name" => [
+                        "type" => "text",
+                        "analyzer" => "standard",
+                    ],
+                    "brief" => [
+                        "type" => "text",
+                        "analyzer" => "standard",
+                    ],
+                    "brand-name" => [
+                        "type" => "text",
+                        "analyzer" => "standard",
+                    ],
+                    "brand-desc" => [
+                        "type" => "text",
+                        "analyzer" => "standard",
+                    ],
+                    "category-name" => [
+                        "type" => "text",
+                        "analyzer" => "standard",
+                    ],
+                    "category-desc" => [
+                        "type" => "text",
+                        "analyzer" => "standard",
+                    ],
+                ]
+            ],
+        ],
+        'settings' => [
+            'default' => [
+                'number_of_shards' => 1,
+                'number_of_replicas' => 0,
+            ],
+        ],
+    ],
+
+];
+```
+
+analyzer：字段文本的分词器
+search_analyzer：搜索词的分词器
+根据具体业务场景选择 (颗粒小占用资源多，一般场景 analyzer 使用 ik_max_word,search_analyzer 使用 ik_smart):
+ik_max_word：ik 中文分词插件提供，对文本进行最大数量分词
+laravel天下无敌 -> laravel，天下无敌 , 天下 , 无敌
+ik_smart: ik 中文分词插件提供，对文本进行最小数量分词
+laravel天下无敌 -> laravel，天下无敌
+配置文章模型
+建议先看一遍 Laravel Scout 使用文档
+
+引入 Laravel Scout
+
+```php
+<?php
+
+namespace App\Models\Goods;
+
+use App\Models\BaseModel;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Laravel\Scout\Searchable;
+
+class Goods extends BaseModel
+{
+    use HasFactory, Searchable;
+
+    protected $table = 'goods';
+
+    protected $fillable = [];
+
+    protected $casts = [
+        'counter_price' => 'float',
+        'retail_price' => 'float',
+        'is_hot' => 'boolean',
+        'is_new' => 'boolean',
+        'gallery' => 'array',
+        'isOnSale' => 'boolean',
+
+    ];
+
+		/**
+     * 指定索引
+     * @return string
+     */
+    public function searchableAs()
+    {
+        return 'goods';
+    }
+
+		/**
+     * 设置导入索引的数据字段
+     * @return array
+     */
+    public function toSearchableArray()
+    {
+        return [
+            'goods-name' => $this->name,
+            'brief' => $this->brief,
+            'brand-name' => $this->brand->name ?? '',
+            'brand-desc' => $this->brand->desc ?? '',
+            'category-name' => $this->category->name ?? '',
+            'category-desc' => $this->category->desc ?? '',
+        ];
+
+    }
+
+    /**
+     * 指定 搜索索引中存储的唯一ID
+     * @return mixed
+     */
+    public function getScoutKey()
+    {
+        return $this->id;
+    }
+
+    /**
+     * 指定 搜索索引中存储的唯一ID的键名
+     * @return string
+     */
+    public function getScoutKeyName()
+    {
+        return 'id';
+    }
+
+    public function category()
+    {
+        return $this->hasOne(Category::class, 'id', 'category_id');
+    }
+
+    public function brand()
+    {
+        return $this->hasOne(Brand::class, 'id', 'brand_id');
+    }
+
+}
+```
+
+```bash
+# 一键自动导入: 
+$ php artisan scout:import
+# 导入指定模型: 
+$ php artisan scout:import ${model}
+$ php artisan scout:import "App\Models\Blog\Article"
+```
+
+```bash
+Importing [App\Models\Goods\Goods]
+Switching to the new index
+5/5 [⚬⚬⚬⚬⚬⚬⚬⚬⚬⚬⚬⚬⚬⚬⚬⚬⚬⚬⚬⚬⚬⚬⚬⚬⚬⚬⚬⚬] 100%
+
+ [OK] All [App\Models\Goods\Goods] records have been imported.
+
+```
+
+测试
+
+```php
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Http\Controllers\Wx\WxController;
+use App\Models\Goods\Goods;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+
+class TestController extends WxController
+{
+    protected $only = [];
+
+    public function test(Request $request)
+    {
+        $search = $request->input('search', '');
+        $startTime = Carbon::now()->getPreciseTimestamp(3);
+        $goods = Goods::search($search)
+            ->query(function ($query) {
+                $query->select(['id', 'name', 'brand_id', 'category_id', 'brief']);
+            })
+            ->get();
+        $userTime = Carbon::now()->getPreciseTimestamp(3) - $startTime;
+        echo "耗时(毫秒)：{$userTime} \n";
+        //content在另外一张表中，方便观察测试 这里输出
+        if(!empty($goods)) {
+            foreach($goods as &$good) {
+                $brand = $good->brand;
+                $category = $good->category;
+                $good['brand_name'] = $brand->name ?? '';
+                $good['brand_desc'] = $brand->desc ?? '';
+                $good['category_name'] = $category->name ?? '';
+                $good['category_desc'] = $category->desc ?? '';
+                unset($good->brand);
+                unset($good->category);
+            }
+        }
+        return $this->success($goods);
+    }
+
+}
+```
+
+- $client 官方 elasticsearch/elasticsearch package
+- $body ongr/elasticsearch-dsl package

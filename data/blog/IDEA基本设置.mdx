@@ -1,0 +1,84 @@
+---
+title: 'IDEA基本设置'
+date: '2022-05-07'
+tags: ['ide']
+draft: false
+summary: '关于IDEA基本设置的技术文章，包含详细的技术实现和最佳实践。'
+---
+
+## 1、字体主题设置
+选择 File -- settings -- Editor -- Font  按照自己喜好设置
+- 编辑区字体设置
+![编辑区字体设置](https://qiniu.calmchen.com/blog/2022-05-07-idea-editor-font.png)
+
+- 工作区区字体设置
+![工作区区字体设置](https://qiniu.calmchen.com/blog/2022-05-07-idea-behavior-theme.png)
+
+## 2、编码格式
+在开发中，我们常设置编码格式为UTF-8
+![编码格式设置](https://qiniu.calmchen.com/blog/2022-05-07-idea1.png)
+由上到下需要配置编码的地方有四处：
+> - Global Encoding：全局编码
+> - Project Encoding ：项目编码
+> - Encoding：源码目录编码
+> - Default encoding for properties files：.properties文件编码
+
+## 3、方法分割线
+勾选 Show method separators 选项即可
+![方法分割线设置](https://qiniu.calmchen.com/blog/2022-05-07-031119.png)
+
+## 4、方法参数提示
+勾选图中三项即可
+![方法参数提示](https://qiniu.calmchen.com/blog/2022-05-07-031423.png)
+
+共有三个选项：
+> - Show parameter name hints on completion：填写参数后显示其信息
+> - Show the parameter info popup in 1000 ms：选择要调用的方法后在一秒内弹出参数信息
+> - Show full method signatures：显示完整的方法签名
+
+## 5、鼠标悬停显示其文档信息（即悬停提示）
+![悬停提示](https://qiniu.calmchen.com/blog/2022-05-07-031635.png)
+勾选 Show quick documentation on mouse move 选项
+
+## 6、添加代码作者以及日期信息
+![添加代码作者以及日期信息](https://qiniu.calmchen.com/blog/2022-05-07-idea-codetemplates-fileheader.png)
+
+## 7、设置导航栏不折叠类名（当类名过多时）
+勾选图中选项即可
+此处有两个选项：
+![设置导航栏不折叠类名](https://qiniu.calmchen.com/blog/2022-05-07-idea-showtabs.png)
+Show pinned tabs in a separate row：在单独的行中显示固定标签（即显示右上角 × 号）
+同时设置标签的个数（此版本默认为10）
+
+## 8、通过鼠标滚轮调整字体大小
+
+勾选 Change font size with Ctrl+Mouse Wheel 选项
+![鼠标滚轮调整字体大小](https://qiniu.calmchen.com/blog/2022-05-07-idea-mousecontrol.png)
+
+## 9、自动导包
+选择并勾选图中选项
+![自动导包](https://qiniu.calmchen.com/blog/2022-05-07-idea-autoimport.png)
+其中有两个选项需要我们勾选：
+> - Add unambiguous imports on the fly：动态添加明确的导入
+> - Optimize imprts and compltetion：动态优化导入（即删除无用导入）
+
+## 10、忽略大小写
+取消 Match case 选项
+![忽略大小写](https://qiniu.calmchen.com/blog/2022-05-07-idea-matchcase.png)
+如果忽略大小写，则当我们输入“stringbuffer”时IDEA也会给予提示
+如果我们不忽略大小写，则我们只能通过输入“StringBuffer”来获得提示
+
+此处有三个选项：
+> - Match case：匹配大小写
+> - First letter only：首字母映照
+> - All letters：字母全拼
+
+## 11、自动编译
+暂无
+
+## 12、关闭自动更新
+![关闭自动更新](https://qiniu.calmchen.com/blog/2022-05-07-idea-check-ide-updates.png)
+取消勾选 Check IDE updates for Stable Releases 选项
+
+# 转载
+[IDEA的基本设置（基于2021.1.2版本）](https://blog.csdn.net/weixin_54886569/article/details/119114894?spm=1001.2014.3001.5506)

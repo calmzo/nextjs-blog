@@ -1,0 +1,507 @@
+---
+title: 'Git 速查表'
+date: '2022-07-25'
+tags: ['git']
+draft: false
+summary: '关于Git 速查表的技术文章，包含详细的技术实现和最佳实践。'
+---
+
+# Git 速查表
+
+> Git version 2.36.0
+
+## 目录
+
+- [文档说明](#文档说明)
+- [初始配置](#初始配置)
+- [创建项目](#创建项目)
+- [添加文件](#添加文件)
+- [显示信息](#显示信息)
+- [撤回操作](#撤回操作)
+- [分支管理](#分支管理)
+- [远程操作](#远程操作)
+- [帮助命令](#帮助命令)
+- [checkout 命令](#checkout-命令)
+
+## 文档说明
+
+- `<>` 表示【需替换的项】
+- `[]` 表示【非必填项】
+- `|` 表示【或】
+- **工作树**（工作区）、**索引**（暂存区）、**Git 目录**（HEAD）三词含义参照 Git 官网
+
+## 初始配置
+
+### 基本配置
+
+```bash
+# 配置用户名
+git config --global user.name [<username>]
+
+# 配置邮箱
+git config --global user.email [<email>]
+
+# 配置编辑器
+git config --global core.editor [<vim>]
+```
+
+### 其他配置
+
+```bash
+# 查看配置
+git config --list
+
+# 查看特定配置
+git config user.name
+
+# 设置换行符处理
+git config --global core.autocrlf true  # Windows
+git config --global core.autocrlf input # Mac/Linux
+```
+
+## 创建项目
+
+### 克隆远程仓库
+
+```bash
+# 克隆仓库
+git clone <repository-url>
+
+# 克隆指定分支
+git clone -b <branch-name> <repository-url>
+
+# 克隆到指定目录
+git clone <repository-url> <directory-name>
+
+# 浅克隆（只克隆最新版本）
+git clone --depth 1 <repository-url>
+```
+
+### 初始化本地项目
+
+```bash
+# 初始化当前目录
+git init
+
+# 初始化指定目录
+git init [project]
+```
+
+## 添加文件
+
+### 基本添加和提交
+
+```bash
+# 添加文件到暂存区
+git add <file>
+
+# 添加所有文件到暂存区
+git add .
+
+# 添加所有修改的文件
+git add -A
+
+# 交互式添加
+git add -i
+
+# 将暂存区的内容提交到 HEAD
+git commit -m <commit-notes>
+
+# 将 add 和 commit 合并操作
+git commit -am <commit-notes>
+
+# 修改最后一次提交
+git commit --amend -m <commit-notes>
+
+# 修改最后一次提交（不修改提交信息）
+git commit --amend --no-edit
+```
+
+### 高级提交操作
+
+```bash
+# 空提交（用于触发 CI/CD）
+git commit --allow-empty -m "trigger build"
+
+# 修改提交作者
+git commit --amend --author="Name <email>"
+
+# 添加文件到上次提交
+git add <file>
+git commit --amend --no-edit
+```
+
+## 显示信息
+
+### 状态和差异
+
+```bash
+# 显示工作区状态
+git status
+
+# 显示简洁状态
+git status -s
+
+# 显示工作区与暂存区的差异
+git diff
+
+# 显示暂存区与 HEAD 的差异
+git diff --cached
+
+# 显示工作区与 HEAD 的差异
+git diff HEAD
+
+# 显示两个提交之间的差异
+git diff <commit1> <commit2>
+```
+
+### 日志和查看
+
+```bash
+# 显示提交日志
+git log
+
+# 显示简洁日志
+git log --oneline
+
+# 显示图形化日志
+git log --graph --oneline --all
+
+# 显示某个提交的详细内容
+git show <commit>
+
+# 显示文件每行的提交信息
+git blame <file>
+
+# 显示文件历史
+git log --follow <file>
+
+# 显示最近 n 次提交
+git log -n <number>
+```
+
+## 撤回操作
+
+### 工作区撤回
+
+```bash
+# 撤回工作区的修改
+git restore <file>
+
+# 撤回所有工作区的修改
+git restore .
+
+# 将已提交到暂存区的修改撤回工作区
+git restore --staged <file>
+
+# 撤回所有暂存区的修改
+git restore --staged .
+```
+
+### 版本回退
+
+```bash
+# 软回退：保留工作区和暂存区的修改
+git reset --soft <commit>
+
+# 混合回退：保留工作区的修改，清空暂存区
+git reset [--mixed] <commit>
+
+# 硬回退：不保留任何修改
+git reset --hard <commit>
+
+# 回退到上一个提交
+git reset --hard HEAD~1
+
+# 回退到指定提交
+git reset --hard <commit-hash>
+```
+
+### 文件操作
+
+```bash
+# 将文件从工作区和暂存区删除
+git rm <file>
+
+# 将文件从暂存区删除，但保留在工作区
+git rm --cached <file>
+
+# 将文件从工作区和暂存区移动或改名
+git mv <old-file> <new-file>
+
+# 从工作区删除未跟踪的文件
+git clean -f
+
+# 从工作区删除未跟踪的文件和目录
+git clean -df
+
+# 预览将要删除的文件
+git clean -n
+```
+
+## 分支管理
+
+### 分支操作
+
+```bash
+# 显示所有分支
+git branch [--list]
+
+# 显示远程分支
+git branch -a
+
+# 显示分支详细信息
+git branch -v
+
+# 创建分支
+git branch <branch-name>
+
+# 删除分支
+git branch -d <branch-name>
+
+# 强制删除分支
+git branch -D <branch-name>
+
+# 重命名当前分支
+git branch -m <new-branch-name>
+
+# 重命名指定分支
+git branch -m <old-name> <new-name>
+```
+
+### 分支切换
+
+```bash
+# 切换到已有分支
+git switch <branch-name>
+
+# 创建并切换分支
+git switch -c <branch-name>
+
+# 切换到上一个分支
+git switch -
+
+# 基于远程分支创建本地分支
+git switch -c <local-branch> origin/<remote-branch>
+```
+
+### 分支合并
+
+```bash
+# 将指定分支合并到当前分支
+git merge <branch-name>
+
+# 快进合并
+git merge --ff-only <branch-name>
+
+# 非快进合并
+git merge --no-ff <branch-name>
+
+# 压缩合并
+git merge --squash <branch-name>
+```
+
+### 标签管理
+
+```bash
+# 给当前提交打标签
+git tag <tag-name>
+
+# 给指定提交打标签
+git tag <tag-name> <commit-hash>
+
+# 创建带注释的标签
+git tag -a <tag-name> -m <message>
+
+# 显示所有标签
+git tag
+
+# 删除标签
+git tag -d <tag-name>
+
+# 推送标签到远程
+git push origin <tag-name>
+
+# 推送所有标签
+git push origin --tags
+```
+
+### 暂存操作
+
+```bash
+# 将工作区的更改存储到暂存区
+git stash
+
+# 带消息的暂存
+git stash push -m <message>
+
+# 显示暂存列表
+git stash list
+
+# 应用最近的暂存
+git stash apply
+
+# 应用指定的暂存
+git stash apply stash@{n}
+
+# 应用并删除暂存
+git stash pop
+
+# 删除指定的暂存
+git stash drop stash@{n}
+
+# 清空所有暂存
+git stash clear
+```
+
+## 远程操作
+
+### 远程仓库管理
+
+```bash
+# 显示远程仓库
+git remote [-v]
+
+# 显示远程仓库详细信息
+git remote show <origin>
+
+# 添加远程仓库
+git remote add <origin> <url>
+
+# 删除远程仓库
+git remote rm <origin>
+
+# 重命名远程仓库
+git remote rename <old-name> <new-name>
+
+# 修改远程仓库 URL
+git remote set-url <origin> <new-url>
+```
+
+### 推送和拉取
+
+```bash
+# 拉取远程仓库到本地
+git pull [<origin> <branch>]
+
+# 拉取并变基
+git pull --rebase
+
+# 将本地库推送到远程库
+git push [-u <origin> <branch>]
+
+# 强制推送
+git push --force
+
+# 推送所有分支
+git push --all
+
+# 推送标签
+git push --tags
+
+# 删除远程分支
+git push origin --delete <branch>
+
+# 或者使用
+git push origin :<branch>
+```
+
+### 获取更新
+
+```bash
+# 从远程库获取更新
+git fetch
+
+# 获取指定远程仓库
+git fetch <origin>
+
+# 获取所有远程仓库
+git fetch --all
+
+# 获取并清理远程分支
+git fetch --prune
+```
+
+## 帮助命令
+
+### 获取帮助
+
+```bash
+# 显示某个命令的详细使用文档
+git help <command>
+
+# 显示某个命令的使用说明
+git <command> -h
+
+# 显示 Git 帮助
+git help
+
+# 在浏览器中打开帮助文档
+git help --web <command>
+```
+
+### 常用帮助命令
+
+```bash
+# Git 配置帮助
+git help config
+
+# 分支操作帮助
+git help branch
+
+# 合并帮助
+git help merge
+
+# 重置帮助
+git help reset
+```
+
+## checkout 命令
+
+> **注意**：该命令职责不明确，建议使用更具体的命令替代
+
+### 文件操作
+
+```bash
+# 丢弃工作区的修改
+git checkout <file>
+
+# 强制丢弃工作区和暂存区的修改
+git checkout -f
+
+# 从暂存区恢复文件
+git checkout -- <file>
+```
+
+### 分支操作
+
+```bash
+# 切换分支
+git checkout <branch>
+
+# 创建并切换分支
+git checkout -b <branch>
+
+# 基于远程分支创建本地分支
+git checkout -b <local-branch> origin/<remote-branch>
+```
+
+### 推荐替代方案
+
+| 旧命令 | 推荐替代命令 | 说明 |
+|--------|-------------|------|
+| `git checkout <file>` | `git restore <file>` | 恢复文件 |
+| `git checkout <branch>` | `git switch <branch>` | 切换分支 |
+| `git checkout -b <branch>` | `git switch -c <branch>` | 创建并切换分支 |
+
+## 总结
+
+这个 Git 速查表涵盖了日常开发中最常用的 Git 命令。建议：
+
+1. **优先使用新命令**：如 `git switch`、`git restore` 替代 `git checkout`
+2. **理解工作区概念**：工作区、暂存区、版本库的关系
+3. **谨慎使用强制命令**：如 `--force`、`--hard` 等
+4. **善用帮助命令**：`git help <command>` 获取详细说明
+5. **定期备份重要分支**：避免意外丢失代码
+
+通过熟练掌握这些命令，可以大大提高 Git 使用效率和代码管理能力。

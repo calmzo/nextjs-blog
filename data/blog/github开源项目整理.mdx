@@ -1,0 +1,231 @@
+---
+title: 'Github开源项目传送门【整理ing】'
+date: '2022-07-29'
+tags: ['git', 'open-source']
+draft: false
+summary: '关于Github开源项目传送门【整理ing】的技术文章，包含详细的技术实现和最佳实践。'
+---
+
+# github开源项目传送门
+
+> 提高自己的编程技巧 发现编程的乐趣
+
+## 1、[dompdf](https://github.com/dompdf/dompdf) ![](https://img.shields.io/github/stars/dompdf/dompdf?style=plastic) ![](https://img.shields.io/github/watchers/dompdf/dompdf?style=plastic) ![](https://img.shields.io/github/forks/dompdf/dompdf?style=plastic)
+
+> 一个 HTML 转 PDF 的 PHP 库
+
+```php
+// reference the Dompdf namespace
+use Dompdf\Dompdf;
+
+// instantiate and use the dompdf class
+$dompdf = new Dompdf();
+$dompdf->loadHtml('hello world');
+
+// (Optional) Setup the paper size and orientation
+$dompdf->setPaper('A4', 'landscape');
+
+// Render the HTML as PDF
+$dompdf->render();
+
+// Output the generated PDF to Browser
+$dompdf->stream();
+```
+
+## 2、[laravel-tips](https://github.com/LaravelDaily/laravel-tips) ![](https://img.shields.io/github/stars/LaravelDaily/laravel-tips?style=plastic) ![](https://img.shields.io/github/watchers/LaravelDaily/laravel-tips?style=plastic) ![](https://img.shields.io/github/forks/LaravelDaily/laravel-tips?style=plastic)
+
+>Laravel 编码技巧集合 [中文](https://github.com/LaravelDaily/laravel-tips)
+
+## 3、[video_spider](https://github.com/5ime/video_spider) ![](https://img.shields.io/github/stars/5ime/video_spider?style=plastic) ![](https://img.shields.io/github/watchers/5ime/video_spider?style=plastic) ![](https://img.shields.io/github/forks/5ime/video_spider?style=plastic)
+> 视频去水印工具。原理很简单就是根据输入的视频的地址，返回原平台无水印的视频源地址。目前支持 15 个视频平台，[在线尝试](https://lab.5ime.cn/video/)
+
+## 4、[PHPMailer](https://github.com/PHPMailer/PHPMailer) ![](https://img.shields.io/github/stars/PHPMailer/PHPMailer?style=plastic) ![](https://img.shields.io/github/watchers/PHPMailer/PHPMailer?style=plastic) ![](https://img.shields.io/github/forks/PHPMailer/PHPMailer?style=plastic)
+> 最流行的 PHP 发邮件的开源库。很多知名 PHP 开源项目中都有它的身影，比如：WordPress、Yii 等，支持你对发邮件的所有开发需求。
+```php
+<?php
+//Import PHPMailer classes into the global namespace
+//These must be at the top of your script, not inside a function
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\SMTP;
+use PHPMailer\PHPMailer\Exception;
+
+//Load Composer's autoloader
+require 'vendor/autoload.php';
+
+//Instantiation and passing `true` enables exceptions
+$mail = new PHPMailer(true);
+
+try {
+    //Server settings
+    $mail->SMTPDebug = SMTP::DEBUG_SERVER;                      //Enable verbose debug output
+    $mail->isSMTP();                                            //Send using SMTP
+    $mail->Host       = 'smtp.example.com';                     //Set the SMTP server to send through
+    $mail->SMTPAuth   = true;                                   //Enable SMTP authentication
+    $mail->Username   = 'user@example.com';                     //SMTP username
+    $mail->Password   = 'secret';                               //SMTP password
+    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;         //Enable TLS encryption; `PHPMailer::ENCRYPTION_SMTPS` encouraged
+    $mail->Port       = 587;                                    //TCP port to connect to, use 465 for `PHPMailer::ENCRYPTION_SMTPS` above
+
+    //Recipients
+    $mail->setFrom('from@example.com', 'Mailer');
+    $mail->addAddress('joe@example.net', 'Joe User');     //Add a recipient
+    $mail->addAddress('ellen@example.com');               //Name is optional
+    $mail->addReplyTo('info@example.com', 'Information');
+    $mail->addCC('cc@example.com');
+    $mail->addBCC('bcc@example.com');
+
+    //Attachments
+    $mail->addAttachment('/var/tmp/file.tar.gz');         //Add attachments
+    $mail->addAttachment('/tmp/image.jpg', 'new.jpg');    //Optional name
+
+    //Content
+    $mail->isHTML(true);                                  //Set email format to HTML
+    $mail->Subject = 'Here is the subject';
+    $mail->Body    = 'This is the HTML message body <b>in bold!</b>';
+    $mail->AltBody = 'This is the body in plain text for non-HTML mail clients';
+
+    $mail->send();
+    echo 'Message has been sent';
+} catch (Exception $e) {
+    echo "Message could not be sent. Mailer Error: {$mail->ErrorInfo}";
+}
+```
+
+## 5、[easy-sms](https://github.com/overtrue/easy-sms) ![](https://img.shields.io/github/stars/overtrue/easy-sms?style=plastic) ![](https://img.shields.io/github/watchers/overtrue/easy-sms?style=plastic) ![](https://img.shields.io/github/forks/overtrue/easy-sms?style=plastic)
+> 短信发送 PHP 组件。特点：
+> - 支持目前市面多家服务商
+> - 一套写法兼容所有平台
+> - 简单配置即可灵活增减服务商
+> - 内置多种服务商轮询策略、支持自定义轮询策略
+
+```php
+use Overtrue\EasySms\EasySms;
+
+$config = [
+    // HTTP 请求的超时时间（秒）
+    'timeout' => 5.0,
+
+    // 默认发送配置
+    'default' => [
+        // 网关调用策略，默认：顺序调用
+        'strategy' => \Overtrue\EasySms\Strategies\OrderStrategy::class,
+
+        // 默认可用的发送网关
+        'gateways' => [
+            'yunpian', 'aliyun',
+        ],
+    ],
+    // 可用的网关配置
+    'gateways' => [
+        'errorlog' => [
+            'file' => '/tmp/easy-sms.log',
+        ],
+        'yunpian' => [
+            'api_key' => '824f0ff2f71cab52936axxxxxxxxxx',
+        ],
+        'aliyun' => [
+            'access_key_id' => '',
+            'access_key_secret' => '',
+            'sign_name' => '',
+        ],
+        //...
+    ],
+];
+
+$easySms = new EasySms($config);
+
+$easySms->send(13188888888, [
+    'content'  => '您的验证码为: 6379',
+    'template' => 'SMS_001',
+    'data' => [
+        'code' => 6379
+    ],
+]);
+
+```
+
+## 6、[clean-code-php](https://github.com/jupeter/clean-code-php) ![](https://img.shields.io/github/stars/jupeter/clean-code-php?style=plastic) ![](https://img.shields.io/github/watchers/jupeter/clean-code-php?style=plastic) ![](https://img.shields.io/github/forks/jupeter/clean-code-php?style=plastic)
+> PHP 代码的整洁之道，整理了一系列整洁代码实操。小到变量细道 SOLID 都有涉猎，[中文译版](https://github.com/php-cpm/clean-code-php)
+
+## 7、[php-curl-class](https://github.com/php-curl-class/php-curl-class) ![](https://img.shields.io/github/stars/php-curl-class/php-curl-class?style=plastic) ![](https://img.shields.io/github/watchers/php-curl-class/php-curl-class?style=plastic) ![](https://img.shields.io/github/forks/php-curl-class/php-curl-class?style=plastic)
+> 该开源项目封装了 PHP 的 cURL 库，使得发送 HTTP 请求变得简单。适用于需要 PHP 爬虫或者其它模拟 HTTP 访问的情况
+```php
+<?php
+// 获取豆瓣电影示例
+require '../vendor/autoload.php';
+use Curl\Curl;
+
+$curl = new Curl();
+$url = "https://movie.douban.com/j/search_subjects?type=movie&tag=%E8%B1%86%E7%93%A3%E9%AB%98%E5%88%86&sort=time&page_limit=20&page_start=1";
+$curl->get($url);
+$curl->setOpt(CURLOPT_SSL_VERIFYPEER, false);
+$curl->close();
+var_dump($curl->getResponse());exit;
+```
+
+## 8、[CRMEB](https://github.com/crmeb/CRMEB) ![](https://img.shields.io/github/stars/crmeb/CRMEB?style=plastic) ![](https://img.shields.io/github/watchers/crmeb/CRMEB?style=plastic) ![](https://img.shields.io/github/forks/crmeb/CRMEB?style=plastic)
+> 基于 ThinkPhp5.0 + Vue + EasyWeChat 开发的一套开源、免费新零售商城系统（集客户关系管理+营销电商系统）。能够帮助企业基于微信公众号、小程序、PC、APP 等，实现会员管理、数据分析、精准营销的电子商务管理系统。满足企业新零售、预约、O2O、多店等各种业务需求，反正就是功能强大、适用于多种场景的商城系统
+
+## 9、[wizard](https://github.com/mylxsw/wizard) ![](https://img.shields.io/github/stars/mylxsw/wizard?style=plastic) ![](https://img.shields.io/github/watchers/mylxsw/wizard?style=plastic) ![](https://img.shields.io/github/forks/mylxsw/wizard?style=plastic)
+> 一款基于 Laravel 开发框架的开源文档管理系统。目前已经在多家公司部署使用，支持：Markdown、Swagger 文档管理，公司内部的统一身份认证系统（LDAP）等功能
+
+## 10、[PHP-Interview-QA](https://github.com/colinlet/PHP-Interview-QA) ![](https://img.shields.io/github/stars/colinlet/PHP-Interview-QA?style=plastic) ![](https://img.shields.io/github/watchers/colinlet/PHP-Interview-QA?style=plastic) ![](https://img.shields.io/github/forks/colinlet/PHP-Interview-QA?style=plastic)
+《PHP 面试问答》结合实际 PHP 面试经验，系统地汇总面试中的各类的问题，并尝试提供简洁准确的答案，为你面试 PHP 相关岗位提供“秘籍”。包含：网络协议、数据结构与算法、PHP基础、Web、MySQL、Redis、自我介绍、离职原因、职业规划等部分
+
+## 11、[PasteMe](https://github.com/LucienShui/PasteMe) ![](https://img.shields.io/github/stars/LucienShui/PasteMe?style=plastic) ![](https://img.shields.io/github/watchers/LucienShui/PasteMe?style=plastic) ![](https://img.shields.io/github/forks/LucienShui/PasteMe?style=plastic)
+快速分享文本、代码的网站项目。支持加密、一键复制、永久保存、阅后即焚等功能。[在线示例](https://pasteme.cn/)
+
+## 12、[laravel-s](https://github.com/hhxsv5/laravel-s) ![](https://img.shields.io/github/stars/hhxsv5/laravel-s?style=plastic) ![](https://img.shields.io/github/watchers/hhxsv5/laravel-s?style=plastic) ![](https://img.shields.io/github/forks/hhxsv5/laravel-s?style=plastic)
+> 用于快速集成 Swoole 到 Laravel，开箱即用。特点：
+> - 集成 LaravelS 之后无需使用 PHP FPM，直接基于 Swoole 开启 HTTP Server
+> - 代码常驻内存之中，性能提升非常明显
+> - 可快速开发 WebSocket/TCP/UDP 服务
+> - 支持异步任务队列、自定义进程、定时任务，支持更多的业务场景
+> - 可直接使用 Swoole 的很多特性
+> - 等等
+
+## 13、[meedu](https://github.com/Qsnh/meedu) ![](https://img.shields.io/github/stars/Qsnh/meedu?style=plastic) ![](https://img.shields.io/github/watchers/Qsnh/meedu?style=plastic) ![](https://img.shields.io/github/forks/Qsnh/meedu?style=plastic)
+开源免费的在线教育系统，支持在线点播、在线电子书、会员收费三大模块。[在线尝试](https://meedu.vip/)
+
+## 14、[arithmetic-php](https://github.com/pushaowei/arithmetic-php) ![](https://img.shields.io/github/stars/pushaowei/arithmetic-php?style=plastic) ![](https://img.shields.io/github/watchers/pushaowei/arithmetic-php?style=plastic) ![](https://img.shields.io/github/forks/pushaowei/arithmetic-php?style=plastic)
+PHP 语言实现的各类算法合集
+
+## 15、[Biny](https://github.com/Tencent/Biny) ![](https://img.shields.io/github/stars/Tencent/Biny?style=plastic) ![](https://img.shields.io/github/watchers/Tencent/Biny?style=plastic) ![](https://img.shields.io/github/forks/Tencent/Biny?style=plastic)
+> 腾讯开源的一款高性能的超轻量级PHP框架，用于快速开发现代 Web 应用程序。代码简洁优雅，对应用层，数据层，模板渲染层的封装简单易懂，能够快速上手使用，文档齐全。高性能，框架响应时间在 1ms 以内，单机 qps 轻松上3000。
+> - 支持跨库连表，条件复合筛选，查询PK缓存等
+> - 同步异步请求分离，类的自动化加载管理
+> - 支持Form表单验证，支持事件触发机制
+> - 支持浏览器端调试，快速定位程序问题和性能瓶颈
+> - 具有sql防注入，html自动防xss等特性
+
+## 16、[nextcloud-server](https://github.com/nextcloud/server) ![](https://img.shields.io/github/stars/nextcloud/server?style=plastic) ![](https://img.shields.io/github/watchers/nextcloud/server?style=plastic) ![](https://img.shields.io/github/forks/nextcloud/server?style=plastic)
+开源云存储平台，功能齐全，可以用于搭建公司内部的云存储平台
+
+## 17、[typecho](https://github.com/typecho/typecho) ![](https://img.shields.io/github/stars/typecho/typecho?style=plastic) ![](https://img.shields.io/github/watchers/typecho/typecho?style=plastic) ![](https://img.shields.io/github/forks/typecho/typecho?style=plastic)
+PHP 的一款博客程序，[官网](http://typecho.org)，[文档](http://docs.typecho.org/doku.php)
+
+## 18、[VulApps](https://github.com/Medicean/VulApps) ![](https://img.shields.io/github/stars/Medicean/VulApps?style=plastic) ![](https://img.shields.io/github/watchers/Medicean/VulApps?style=plastic) ![](https://img.shields.io/github/forks/Medicean/VulApps?style=plastic)
+用于快速搭建各种漏洞环境，可用来学习、理解常见的漏洞，增强自己在开发过程的安全意识
+
+## 19、[pinyin](https://github.com/overtrue/pinyin) ![](https://img.shields.io/github/stars/overtrue/pinyin?style=plastic) ![](https://img.shields.io/github/watchers/overtrue/pinyin?style=plastic) ![](https://img.shields.io/github/forks/overtrue/pinyin?style=plastic)
+基于 CC-CEDICT 词典的中文转拼音工具，更准确的支持多音字的汉字转拼音解决方案，示例代码：
+```php
+use OvertruePinyinPinyin;
+
+$pinyin = new Pinyin();
+
+$pinyin->convert('带着希望去旅行，比到达终点更美好');
+// ["dai", "zhe", "xi", "wang", "qu", "lv", "xing", "bi", "dao", "da", "zhong", "dian", "geng", "mei", "hao"]
+
+$pinyin->convert('带着希望去旅行，比到达终点更美好', PINYIN_UNICODE);
+// ["dài","zhe","xī","wàng","qù","lǚ","xíng","bǐ","dào","dá","zhōng","diǎn","gèng","měi","hǎo"]
+
+$pinyin->convert('带着希望去旅行，比到达终点更美好', PINYIN_ASCII);
+//["dai4","zhe","xi1","wang4","qu4","lv3","xing2","bi3","dao4","da2","zhong1","dian3","geng4","mei3","hao3"]
+```
+
+## 20、[Administrative-divisions-of-China](https://github.com/modood/Administrative-divisions-of-China) ![](https://img.shields.io/github/stars/modood/Administrative-divisions-of-China?style=plastic) ![](https://img.shields.io/github/watchers/modood/Administrative-divisions-of-China?style=plastic) ![](https://img.shields.io/github/forks/modood/Administrative-divisions-of-China?style=plastic)
+中华人民共和国行政区划（五级）：省级、地级、县级、乡级和村级
+
+## 21、[Awesome Github REPO](https://github.com/florinpop17/app-ideas) ![](https://img.shields.io/github/stars/florinpop17/app-ideas?style=plastic) ![](https://img.shields.io/github/watchers/florinpop17/app-ideas?style=plastic) ![](https://img.shields.io/github/forks/florinpop17/app-ideas?style=plastic)
+高质量、有趣的开源项目
