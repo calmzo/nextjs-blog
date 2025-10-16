@@ -1,7 +1,7 @@
 ---
 title: 'Laravel使用模型工厂进行数据填充'
 date: '2022-08-15'
-tags: ['laravel', 'testing']
+tags: ['laravel']
 draft: false
 summary: '关于Laravel使用模型工厂进行数据填充的技术文章，包含详细的技术实现和最佳实践。'
 ---
@@ -9,7 +9,9 @@ summary: '关于Laravel使用模型工厂进行数据填充的技术文章，包
 # Laravel使用Faker+模型工厂进行数据填充
 
 ## 配制faker
+
 设置`config/app.php` 支持中文
+
 ```php
 'faker_locale' => 'zh_CN'
 ```
@@ -17,6 +19,7 @@ summary: '关于Laravel使用模型工厂进行数据填充的技术文章，包
 ## 编写Seeders
 
 ### 生成一个Seeder
+
 生成在`database/seeds` 目录
 
 ```shell
@@ -25,6 +28,7 @@ php artisan make:seeder UserSeeder
 ```
 
 插入语句
+
 ```php
 <?php
 
@@ -56,11 +60,14 @@ class UserSeeder extends Seeder
 ```
 
 ### 模型工厂手动插入数据
+
 #### 生成
+
 ```shell
 php artisan make:factory OrderFactory
 
 ```
+
 新工厂在 `database/factories` 目录中
 
 #### 写
@@ -118,6 +125,7 @@ class UserFactory extends Factory
 ```
 
 ### 调用模型工厂
+
 创建10个订单信息：
 
 ```php
@@ -144,7 +152,9 @@ class UserSeeder extends Seeder
 ```
 
 ### 调用其它 Seeders
+
 `DatabaseSeeder` 使用 `call` 方法可以将数据填充拆分成多个文件，这样就不会使单个 `seeder` 变得非常大。只需简单传递要运行的 `seeder` 类名称即可
+
 ```php
 /**
  * 执行数据库填充
@@ -163,16 +173,19 @@ public function run()
 ```
 
 ### 运行seeder
+
 `db:seed` 命令将运行 `DatabaseSeeder` 类
 `--class` 选项来指定一个特定的 `seeder` 类
+
 ```shell
 php artisan db:seed
-php artisan db:seed --class=UserSeeder 
+php artisan db:seed --class=UserSeeder
 ```
 
 ### faker基本用法
 
 #### Faker\Provider\Base 基本
+
 ```php
 $randomDigit = $faker->randomDigit;//生成0-9之间的随机数
 $randomDigitNotNull = $faker->randomDigitNotNull;//生成1-9之间的随机数
@@ -192,6 +205,7 @@ $regexify = $faker->regexify('[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}');//根据�
 ```
 
 #### Faker\Provider\Lorem 文本
+
 ```php
 $word = $faker->word;//返回一个单词
 $words = $faker->words(3, false);//返回3个单词，false表示返回一个数组；true表示返回一个字符串，单词之间用空格分开
@@ -218,6 +232,7 @@ $lastName = $faker->lastName;//姓
 ```
 
 #### Faker\Provider\en_US\Address 地址
+
 ```php
 $cityPrefix = $faker->cityPrefix;//城市前缀.如：Lake
 $secondaryAddress = $faker->secondaryAddress;//二级地址.如：Suite 061
@@ -247,6 +262,7 @@ $e164PhoneNumber = $faker->e164PhoneNumber;
 ```
 
 #### Faker\Provider\en_US\Company 公司
+
 ```php
 $catchPhrase = $faker->catchPhrase;//口号
 $bs = $faker->bs;
@@ -344,6 +360,7 @@ $iban = $faker->iban;//国际银行账户
 ```
 
 #### Faker\Provider\Color 颜色
+
 ```php
 $hexcolor = $faker->hexcolor;//十六进制的随机色：'#fa3cc2'
 $rgbcolor = $faker->rgbcolor;//RGB格式的随机色（字串形式）：'0,255,122'
@@ -384,6 +401,7 @@ $image = $faker->image('./tmp', 320, 320, 'cats', true, true, 'Faker');
 ```
 
 #### Faker\Provider\Uuid UUID
+
 ```php
 $uuid = $faker->uuid;//生成一个uuid
 

@@ -1,7 +1,7 @@
 ---
 title: 'Laravel的分库分表解决方案'
 date: '2022-08-29'
-tags: ['laravel', 'database']
+tags: ['laravel', 'mysql']
 draft: false
 summary: '关于Laravel的分库分表解决方案的技术文章，包含详细的技术实现和最佳实践。'
 ---
@@ -18,7 +18,8 @@ summary: '关于Laravel的分库分表解决方案的技术文章，包含详细
 
 ## 分表
 
-### 1、横向分表 解决表记录太大问题**
+### 1、横向分表 解决表记录太大问题\*\*
+
 **1）按某个字段分，**
 根据tid最后一位来决定附件要保存在哪个分表
 
@@ -30,12 +31,14 @@ summary: '关于Laravel的分库分表解决方案的技术文章，包含详细
 先把分表创建好，然后创建总表指定engine= MERGE UNION=(table1,table2) INSERT_METHOD = LAST;
 
 ### 2、纵向分表 解决列过多问题
+
 **1）经常组合查询的列放在一个表，常用字段的表可考虑Memory引擎**
 **2）不经常使用的字段单独成表**
 **3）把text、blob等大字段拆分放在附表**
 如：phpcms的文章表分成主表v9_news和从表v9_news_data，主表存标题、关键字、浏览量等，从表存具体内容、模板等
 
 ## 注意事项
+
 **1、避免分表join操作**
 因为关联的表有可能不在同一数据库中
 **2、避免跨库事务**
@@ -47,13 +50,15 @@ summary: '关于Laravel的分库分表解决方案的技术文章，包含详细
 ## Laravel实现
 
 ### 1、根据日期横向分表
+
 **场景 ：**
-logs表根据时间分表，表名为logs_202201  logs_202202
+logs表根据时间分表，表名为logs_202201 logs_202202
 
 **解决方案：**
-[全局作用域](https://learnku.com/docs/laravel/8.x/eloquent/9406#global-scopes) `scope` 
+[全局作用域](https://learnku.com/docs/laravel/8.x/eloquent/9406#global-scopes) `scope`
 
 **示例代码**
+
 ```php
 <?php
 
@@ -138,12 +143,14 @@ class LinLogScope implements Scope {
 ```
 
 ### 问题：
+
 **1.增删改查的前置事件处理**
 laravel需要重写build
 
 **2.分库分表后的关联查询**
 
 **3、采用云原生分布式数据库**
-  - 阿里云 OceanBase
-  - 华为云 GaussDB
-  - TIDB
+
+- 阿里云 OceanBase
+- 华为云 GaussDB
+- TIDB

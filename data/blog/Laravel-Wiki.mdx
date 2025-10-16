@@ -1,7 +1,7 @@
 ---
 title: 'Laravel Wiki'
 date: '2022-01-01'
-tags: ['laravel', 'documentation']
+tags: ['laravel']
 draft: false
 summary: '关于Laravel Wiki的技术文章，包含详细的技术实现和最佳实践。'
 ---
@@ -259,7 +259,7 @@ function foo() {
 $ composer dump-autoload
 ```
 
-## 6、模型关联查询whereHas  with
+## 6、模型关联查询whereHas with
 
 > - 跨库whereHas 无效， 建议查出一张表数据 whereIn查询
 
@@ -275,7 +275,7 @@ class Post extends Eloquent {
     {
         return $this->hasOne(Tag::class, 'id', 'tag_id');
     }
-    
+
     public function tags()
     {
         return $this->hasMany(Tag::class, 'id', 'tag_id');
@@ -290,12 +290,12 @@ class Tag extends Eloquent()
     {
         return $this->hasOne(Post::class, 'id', 'post_id');
     }
-    
+
     public function posts()
     {
         return $this->hasMany(Post::class, 'id', 'post_id');
     }
-    
+
 }
 ```
 
@@ -343,7 +343,7 @@ $book = Book::query()->find($bid);
 $book->save(request()->all());
 ```
 
-这种操作会根据model 的$fillable 进行过滤 直接使用where+update的方式进行数据修改,request->all 方法会获取所有参数，其中包括了_token,和s
+这种操作会根据model 的$fillable 进行过滤 直接使用where+update的方式进行数据修改,request->all 方法会获取所有参数，其中包括了\_token,和s
 
 3. 创建宏
 
@@ -434,6 +434,7 @@ app()->isLocal()
 ```
 
 **方法一、`environment()` 方法**
+
 ```php
 app()->environment('local')
 ```
